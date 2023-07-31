@@ -21,6 +21,7 @@ public:
 
 	void init( std::string const & configFile );
 	void start( void );
+	void sendResponse( int clientSocket, char const * requestBuffer );
 
 	class SocketFailed : public std::exception {
 	public:

@@ -1,5 +1,7 @@
 #include "Server.hpp"
 #include <iostream> // DEBUG
+#include <sstream>
+#include <fstream>
 #include <cstring>
 #include <cerrno>
 #include <sys/socket.h>
@@ -61,16 +63,55 @@ void Server::start( void )
 
 		std::cout << "Received from client: \n" << buffer << std::endl; // DEBUG
 
-		/* TODO: respond with a page */
-
-		std::string serverMessage = "Hello from webserv!";
-
-		if (write(clientSocket, serverMessage.c_str() , serverMessage.length()) == -1) throw Server::WriteFailed();
+		sendResponse(clientSocket, buffer);
 
 		close(clientSocket);
 
 		std::cout << "Connection closed." << std::endl; // DEBUG
 	}
+}
+
+void Server::sendResponse( int clientSocket, char const * requestBuffer )
+{
+	std::string method, page, http;
+
+	std::istringstream requestStream(requestBuffer);
+	requestStream >> method >> page >> http;
+
+	/* TODO: handle method */
+
+	if (page == "/")
+		page = "./pages/index.html";
+	else
+		page = "./pages" + page;
+
+	// std::cout << method << " " << page << " " << http << std::endl; // DEBUG
+
+	std::string response;
+
+	std::ifstream file(page.c_str());
+	if (!file) {
+		response = "HTTP/1.1 404 Not Found\n\n";
+	} else {
+		std::ostringstream contentStream;
+		contentStream << file.rdbuf();
+		file.close();
+
+		std::string fileContent = contentStream.str();
+
+		std::ostringstream responseStream;
+		responseStream << "HTTP/1.1 200 OK\n";
+		responseStream << "Content-Type: text/html\n";
+		responseStream << "Content-Length: " << fileContent.length() << "\n";
+		responseStream << "\n";
+		responseStream << fileContent;
+
+		response = responseStream.str();
+	}
+
+	std::cout << "Response: " << response << std::endl; // DEBUG
+
+	if (write(clientSocket, response.c_str(), response.length()) == -1) throw Server::WriteFailed();
 }
 
 char const * Server::SocketFailed::what() const throw()
