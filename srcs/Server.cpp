@@ -43,7 +43,7 @@ void Server::init( std::string const & configFile )
 
 void Server::start( void )
 {
-	if (listen(_serverSocket, 3) == -1) throw Server::ListenFailed();
+	if (listen(_serverSocket, 128) == -1) throw Server::ListenFailed();
 
 	while (1) {
 		std::cout << "Waiting for connection..." << std::endl; // DEBUG
@@ -78,40 +78,42 @@ void Server::sendResponse( int clientSocket, char const * requestBuffer )
 	std::istringstream requestStream(requestBuffer);
 	requestStream >> method >> page >> http;
 
-	/* TODO: handle method */
+	// std::cout << method << " " << page << " " << http << std::endl; // DEBUG
 
+	std::string response;
+
+	if (method == "GET")	response = getPage(page);
+	else					response = "HTTP/1.1 400 Method Not Supported\n\n";
+
+	std::cout << "Response:\n" << response << std::endl; // DEBUG
+
+	if (write(clientSocket, response.c_str(), response.length()) == -1) throw Server::WriteFailed();
+}
+
+std::string Server::getPage( std::string & page )
+{
 	if (page == "/")
 		page = "./pages/index.html";
 	else
 		page = "./pages" + page;
 
-	// std::cout << method << " " << page << " " << http << std::endl; // DEBUG
-
-	std::string response;
-
 	std::ifstream file(page.c_str());
-	if (!file) {
-		response = "HTTP/1.1 404 Not Found\n\n";
-	} else {
-		std::ostringstream contentStream;
-		contentStream << file.rdbuf();
-		file.close();
+	if (!file) return "HTTP/1.1 404 Not Found\n\n";
 
-		std::string fileContent = contentStream.str();
+	std::ostringstream contentStream;
+	contentStream << file.rdbuf();
+	file.close();
 
-		std::ostringstream responseStream;
-		responseStream << "HTTP/1.1 200 OK\n";
-		responseStream << "Content-Type: text/html\n";
-		responseStream << "Content-Length: " << fileContent.length() << "\n";
-		responseStream << "\n";
-		responseStream << fileContent;
+	std::string fileContent = contentStream.str();
 
-		response = responseStream.str();
-	}
+	std::ostringstream responseStream;
+	responseStream << "HTTP/1.1 200 OK\n";
+	responseStream << "Content-Type: text/html\n";
+	responseStream << "Content-Length: " << fileContent.length() << "\n";
+	responseStream << "\n";
+	responseStream << fileContent;
 
-	std::cout << "Response: " << response << std::endl; // DEBUG
-
-	if (write(clientSocket, response.c_str(), response.length()) == -1) throw Server::WriteFailed();
+	return responseStream.str();
 }
 
 char const * Server::SocketFailed::what() const throw()

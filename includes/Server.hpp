@@ -22,6 +22,7 @@ public:
 	void init( std::string const & configFile );
 	void start( void );
 	void sendResponse( int clientSocket, char const * requestBuffer );
+	std::string getPage( std::string & page );
 
 	class SocketFailed : public std::exception {
 	public:
