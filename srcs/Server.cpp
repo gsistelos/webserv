@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Response.hpp"
 #include <iostream> // DEBUG
 #include <sstream>
 #include <fstream>
@@ -63,57 +64,17 @@ void Server::start( void )
 
 		std::cout << "Received from client: \n" << buffer << std::endl; // DEBUG
 
-		sendResponse(clientSocket, buffer);
+		Response response(buffer);
+
+		std::cout << "Response:\n" << response.getResponse() << std::endl; // DEBUG
+
+		if (write(clientSocket, response.getResponse().c_str(),
+				response.getResponse().length()) == -1) throw Server::WriteFailed();
 
 		close(clientSocket);
 
 		std::cout << "Connection closed." << std::endl; // DEBUG
 	}
-}
-
-void Server::sendResponse( int clientSocket, char const * requestBuffer )
-{
-	std::string method, page, http;
-
-	std::istringstream requestStream(requestBuffer);
-	requestStream >> method >> page >> http;
-
-	// std::cout << method << " " << page << " " << http << std::endl; // DEBUG
-
-	std::string response;
-
-	if (method == "GET")	response = getPage(page);
-	else					response = "HTTP/1.1 400 Method Not Supported\n\n";
-
-	std::cout << "Response:\n" << response << std::endl; // DEBUG
-
-	if (write(clientSocket, response.c_str(), response.length()) == -1) throw Server::WriteFailed();
-}
-
-std::string Server::getPage( std::string & page )
-{
-	if (page == "/")
-		page = "./pages/index.html";
-	else
-		page = "./pages" + page;
-
-	std::ifstream file(page.c_str());
-	if (!file) return "HTTP/1.1 404 Not Found\n\n";
-
-	std::ostringstream contentStream;
-	contentStream << file.rdbuf();
-	file.close();
-
-	std::string fileContent = contentStream.str();
-
-	std::ostringstream responseStream;
-	responseStream << "HTTP/1.1 200 OK\n";
-	responseStream << "Content-Type: text/html\n";
-	responseStream << "Content-Length: " << fileContent.length() << "\n";
-	responseStream << "\n";
-	responseStream << fileContent;
-
-	return responseStream.str();
 }
 
 char const * Server::SocketFailed::what() const throw()

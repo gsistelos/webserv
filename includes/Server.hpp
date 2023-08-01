@@ -4,6 +4,12 @@
 #include <netinet/in.h>
 #include <exception>
 
+/*
+ * 'Server' class is responsable for
+ * connections with clients (including
+ * I/O operations) and redirections
+ **/
+
 class Server
 {
 private:
@@ -21,8 +27,6 @@ public:
 
 	void init( std::string const & configFile );
 	void start( void );
-	void sendResponse( int clientSocket, char const * requestBuffer );
-	std::string getPage( std::string & page );
 
 	class SocketFailed : public std::exception {
 	public:
