@@ -1,8 +1,10 @@
 #pragma once
 
 #include <string>
-#include <netinet/in.h>
+#include <vector>
 #include <exception>
+#include <netinet/in.h>
+#include <poll.h>
 
 /*
  * 'Server' class is responsable for
@@ -13,7 +15,7 @@
 class Server
 {
 private:
-	int					_serverSocket;
+	std::vector<pollfd>	_fds;
 	struct sockaddr_in	_address;
 	socklen_t			_addrlen;
 
@@ -37,6 +39,14 @@ public:
 		char const * what() const throw();
 	};
 	class ListenFailed : public std::exception {
+	public:
+		char const * what() const throw();
+	};
+	class PollFailed : public std::exception {
+	public:
+		char const * what() const throw();
+	};
+	class PollTimeout : public std::exception {
 	public:
 		char const * what() const throw();
 	};
