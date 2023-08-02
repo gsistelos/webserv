@@ -4,6 +4,12 @@
 #include <netinet/in.h>
 #include <exception>
 
+/*
+ * 'Server' class is responsable for
+ * connections with clients (including
+ * I/O operations) and redirections
+ **/
+
 class Server
 {
 private:

@@ -1,5 +1,8 @@
 #include "Server.hpp"
+#include "Response.hpp"
 #include <iostream> // DEBUG
+#include <sstream>
+#include <fstream>
 #include <cstring>
 #include <cerrno>
 #include <sys/socket.h>
@@ -41,7 +44,7 @@ void Server::init( std::string const & configFile )
 
 void Server::start( void )
 {
-	if (listen(_serverSocket, 3) == -1) throw Server::ListenFailed();
+	if (listen(_serverSocket, 128) == -1) throw Server::ListenFailed();
 
 	while (1) {
 		std::cout << "Waiting for connection..." << std::endl; // DEBUG
@@ -61,11 +64,12 @@ void Server::start( void )
 
 		std::cout << "Received from client: \n" << buffer << std::endl; // DEBUG
 
-		/* TODO: respond with a page */
+		Response response(buffer);
 
-		std::string serverMessage = "Hello from webserv!";
+		std::cout << "Response:\n" << response.getResponse() << std::endl; // DEBUG
 
-		if (write(clientSocket, serverMessage.c_str() , serverMessage.length()) == -1) throw Server::WriteFailed();
+		if (write(clientSocket, response.getResponse().c_str(),
+				response.getResponse().length()) == -1) throw Server::WriteFailed();
 
 		close(clientSocket);
 
