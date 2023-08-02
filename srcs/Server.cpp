@@ -18,8 +18,8 @@ Server::Server( void )
 
 Server::~Server()
 {
-	for (size_t i = 0; i < _fds.size(); i++) {
-		close(_fds[i].fd);		
+	for (size_t i = 0; i < this->_fds.size(); i++) {
+		close(this->_fds[i].fd);
 	}
 }
 
@@ -29,13 +29,13 @@ void Server::init( std::string const & configFile )
 
 	/* TODO: handle config file */
 
-	_port = 8080;
+	this->_port = 8080;
 
 	std::cout << "Initializing server..." << std::endl; // DEBUG
 
 	/* Start server as TCP/IP and set to non-block */
 
-	_addrlen = sizeof(_address);
+	this->_addrlen = sizeof(this->_address);
 	int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (serverSocket == -1) throw Server::SocketFailed();
 
@@ -43,13 +43,13 @@ void Server::init( std::string const & configFile )
 
 	/* Bind server address and port to socket */
 
-	_address.sin_family = AF_INET;
-	_address.sin_addr.s_addr = INADDR_ANY;
-	_address.sin_port = htons(_port);
+	this->_address.sin_family = AF_INET;
+	this->_address.sin_addr.s_addr = INADDR_ANY;
+	this->_address.sin_port = htons(this->_port);
 
-	std::memset(_address.sin_zero, '\0', sizeof _address.sin_zero);
+	std::memset(this->_address.sin_zero, '\0', sizeof this->_address.sin_zero);
 
-	if (bind(serverSocket, (struct sockaddr*)&_address, _addrlen) == -1) throw Server::BindFailed();
+	if (bind(serverSocket, (struct sockaddr*)&this->_address, this->_addrlen) == -1) throw Server::BindFailed();
 
 	/* Create a pollfd to handle the serverSocket */
 
@@ -57,14 +57,14 @@ void Server::init( std::string const & configFile )
 	serverFd.fd = serverSocket;
 	serverFd.events = POLLIN;
 
-	_fds.push_back(serverFd);
+	this->_fds.push_back(serverFd);
 }
 
 void Server::start( void )
 {
 	/* Set server to listen for incoming connections */
 
-	if (listen(_fds[SERVER_FD].fd, MAX_CLIENTS) == -1) throw Server::ListenFailed();
+	if (listen(this->_fds[SERVER_FD].fd, MAX_CLIENTS) == -1) throw Server::ListenFailed();
 
 	while (1) {
 		/*
@@ -74,45 +74,45 @@ void Server::start( void )
 		 * Otherwise it's incoming data from a client
 		 **/
 
-		int ready = poll(_fds.data(), _fds.size(), TIMEOUT);
+		int ready = poll(this->_fds.data(), this->_fds.size(), TIMEOUT);
 
 		if (ready == -1)		throw Server::PollFailed();
 		else if (ready == 0)	throw Server::PollTimeout();
 
-		if (_fds[SERVER_FD].revents & POLLIN) {
+		if (this->_fds[SERVER_FD].revents & POLLIN) {
 			/* New client connecting to the server */
 
 			std::cout << "New incoming connection!" << std::endl; // DEBUG
 
-			int clientSocket = accept(_fds[SERVER_FD].fd, (struct sockaddr*)&_address, &_addrlen);
+			int clientSocket = accept(this->_fds[SERVER_FD].fd, (struct sockaddr*)&this->_address, &this->_addrlen);
 			if (clientSocket == -1) throw Server::AcceptFailed();
 
 			pollfd clientFd;
 			clientFd.fd = clientSocket;
 			clientFd.events = POLLIN; // TODO: POLLOUT?
 
-			_fds.push_back(clientFd);
+			this->_fds.push_back(clientFd);
 		}
 
 		char buffer[BUFFER_SIZE + 1];
 
 		/* Iterate clients to check for events */
 
-		for (size_t i = 1; i < _fds.size(); i++) {
-			if (_fds[i].revents == 0) continue; /* No events to check */
+		for (size_t i = 1; i < this->_fds.size(); i++) {
+			if (this->_fds[i].revents == 0) continue; /* No events to check */
 
 			/* Incoming data from client */
 
 			std::cout << "Incoming data from client index: " << i << std::endl; // DEBUG
 
-			size_t bytesRead = read(_fds[i].fd, buffer, BUFFER_SIZE);
+			size_t bytesRead = read(this->_fds[i].fd, buffer, BUFFER_SIZE);
 			if (bytesRead == (size_t)-1) throw Server::ReadFailed();
 
 			if (bytesRead == 0) {
 				/* Connection closed by the client */
 
-				close(_fds[i].fd);
-				_fds.erase(_fds.begin() + i);
+				close(this->_fds[i].fd);
+				this->_fds.erase(this->_fds.begin() + i);
 
 				continue;
 			}
@@ -127,7 +127,7 @@ void Server::start( void )
 
 			std::cout << "Response:\n" << response.getResponse() << std::endl; // DEBUG
 
-			if (write(_fds[i].fd, response.getResponse().c_str(),
+			if (write(this->_fds[i].fd, response.getResponse().c_str(),
 					response.getResponse().length()) == -1) throw Server::WriteFailed();
 		}
 	}
