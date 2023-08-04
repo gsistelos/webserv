@@ -8,23 +8,22 @@
  * a proper response to the client
  **/
 
-class Response
-{
-private:
-	std::string _request;
-	std::string _response;
+class Response {
+   private:
+    std::string _request;
+    std::string _response;
 
-public:
-	Response( void );
-	Response( std::string const & request );
-	Response( Response const & other );
-	~Response();
+   public:
+    Response(void);
+    Response(const std::string &request);
+    Response(const Response &other);
+    ~Response();
 
-	Response& operator=( Response const & other );
+    Response &operator=(const Response &other);
 
-	std::string const & getResponse( void );
+    const std::string &getResponse(void);
 
-	void getMethod( void );
-	void postMethod( void );
-	void deleteMethod( void );
+    void getMethod(void);
+    void postMethod(void);
+    void deleteMethod(void);
 };
