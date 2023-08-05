@@ -6,12 +6,10 @@
 
 #include <cerrno>
 #include <cstring>
-#include <fstream>
-#include <iostream>  // DEBUG
+#include <iostream>
 
-#include "Response.hpp"
+#include "Request.hpp"
 
-#define SERVER_FD 0
 #define MAX_CLIENTS 128
 #define TIMEOUT 1 * 60 * 1000
 #define BUFFER_SIZE 30000
@@ -25,18 +23,16 @@ Server::~Server() {
     }
 }
 
-void Server::init(const std::string &configFile) {
+void Server::configure(const std::string &configFile) {
     (void)configFile;
+}
 
-    // TODO: handle config file
-
-    std::cout << "Initializing server..." << std::endl;  // DEBUG
-
+void Server::init(void) {
     // Start server as TCP/IP and set to non-block
 
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket == -1)
-        throw CustomError("socket");
+        throw Error("socket");
 
     fcntl(serverSocket, F_SETFL, O_NONBLOCK);
 
@@ -50,7 +46,7 @@ void Server::init(const std::string &configFile) {
     this->_address.sin_port = htons(8080); // TODO: change port based in configFile
 
     if (bind(serverSocket, (struct sockaddr *)&this->_address, this->_addrlen) == -1)
-        throw CustomError("bind");
+        throw Error("bind");
 
     // Create a pollfd to handle the serverSocket
 
@@ -65,29 +61,29 @@ void Server::start(void) {
     // Set server to listen for incoming connections
 
     if (listen(this->_fds[SERVER_FD].fd, MAX_CLIENTS) == -1)
-        throw CustomError("listen");
+        throw Error("listen");
 
     while (1) {
         /*
          * poll() will wait for a fd to be ready for I/O operations
          *
-         * If it's the SERVER fd, it's a incoming conenction
+         * If it's the SERVER_FD, it's a incoming conenction
          * Otherwise it's incoming data from a client
          **/
 
         int ready = poll(this->_fds.data(), this->_fds.size(), TIMEOUT);
 
+        std::cout << "passed poll" << std::endl;
+
         if (ready == -1)
-            throw CustomError("poll");
+            throw Error("poll");
 
         if (this->_fds[SERVER_FD].revents & POLLIN) {
             // New client connecting to the server
 
-            std::cout << "New incoming connection!" << std::endl;  // DEBUG
-
             int clientSocket = accept(this->_fds[SERVER_FD].fd, (struct sockaddr *)&this->_address, &this->_addrlen);
             if (clientSocket == -1)
-                throw CustomError("accept");
+                throw Error("accept");
 
             pollfd clientFd;
             clientFd.fd = clientSocket;
@@ -96,9 +92,8 @@ void Server::start(void) {
             this->_fds.push_back(clientFd);
         }
 
-        char buffer[BUFFER_SIZE + 1];
-        std::string request;
-        size_t bytesRead;
+        char readBuffer[BUFFER_SIZE + 1];
+        std::string requestBuffer;
 
         // Iterate clients to check for events
 
@@ -108,13 +103,9 @@ void Server::start(void) {
 
             // Incoming data from client
 
-            std::cout << "Incoming data from client index: " << i << std::endl;
-
-            // TODO: make it dynamic, because using loop + buffer_size untill the end is breaking the code.
-
-            bytesRead = read(this->_fds[i].fd, buffer, BUFFER_SIZE);
+            size_t bytesRead = read(this->_fds[i].fd, readBuffer, BUFFER_SIZE);
             if (bytesRead == (size_t)-1)
-                throw CustomError("read");
+                throw Error("read");
 
             if (bytesRead == 0) {
                 // Connection closed by the client
@@ -125,50 +116,42 @@ void Server::start(void) {
                 continue;
             }
 
-            buffer[bytesRead] = '\0';
+            readBuffer[bytesRead] = '\0';
+            requestBuffer = readBuffer;
 
-            // Read data from client and respond
+            // If there is more to read, keep reading
 
-            request.append(buffer);
+            while (bytesRead == BUFFER_SIZE) {
+                bytesRead = read(this->_fds[i].fd, readBuffer, BUFFER_SIZE);
+                if (bytesRead == (size_t)-1)
+                    throw Error("read");
 
-            size_t headerEnd = request.find("\r\n\r\n");
-            if (headerEnd != std::string::npos) {
-                // Extract header content
-                std::string fileContent = request.substr(headerEnd + 4);
+                readBuffer[bytesRead] = '\0';
 
-                std::cout << "File content:\n"
-                          << fileContent << std::endl;  // DEBUG
+                requestBuffer.append(readBuffer);
+            }
 
-                std::ofstream outputFile("file.xml", std::ios::binary);
-                outputFile.write(fileContent.c_str(), fileContent.length());
-                outputFile.close();
-            } else
-                std::cout << "Header not found" << std::endl; // DEBUG
+            std::cout << requestBuffer << std::endl;
 
-            std::cout << "Received from client:\n"
-                      << buffer << std::endl;  // DEBUG
+            Request request(requestBuffer);
 
-            Response response(buffer);
+            std::cout << request.getResponse() << std::endl;
 
-            std::cout << "Response:\n"
-                      << response.getResponse() << std::endl;  // DEBUG
-
-            if (write(this->_fds[i].fd, response.getResponse().c_str(),
-                    response.getResponse().length()) == -1)
-                throw CustomError("write");
+            if (write(this->_fds[i].fd, request.getResponse().c_str(),
+                    request.getResponse().length()) == -1)
+                throw Error("write");
         }
     }
 }
 
-Server::CustomError::CustomError(const char *message) {
-    std::string str = "webserv: ";
-    str.append(message);
-    str.append(" syscall failed: ");
-    str.append(strerror(errno));
+Server::Error::Error(const char *message) {
+    std::string str = message;
 
     this->_message = str.c_str();
 }
 
-const char *Server::CustomError::what() const throw() {
-    return this->_message;
+const char *Server::Error::what() const throw() {
+    std::cerr << this->_message << ": ";
+
+    return strerror(errno);
 }

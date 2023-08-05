@@ -9,16 +9,11 @@ int main(int argc, char **argv) {
     Server server;
 
     try {
-        server.init("webserv.conf");
-    } catch (std::exception &e) {
-        std::cerr << "Failed to init the server: " << e.what() << std::endl;
-        return 1;
-    }
-
-    try {
+        server.configure("webser.conf");
+        server.init();
         server.start();
     } catch (std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "webserv: " << e.what() << std::endl;
         return 1;
     }
 

@@ -3,23 +3,20 @@
 #include <string>
 
 /*
- * 'Response' class is responsable for
+ * Request class is responsable for
  * interpreting the request and creating
  * a proper response to the client
  **/
-
-class Response {
+class Request {
    private:
-    std::string _request;
+    std::string _header;
+    std::string _content;
     std::string _response;
 
    public:
-    Response(void);
-    Response(const std::string &request);
-    Response(const Response &other);
-    ~Response();
-
-    Response &operator=(const Response &other);
+    Request(void);
+    Request(const std::string &request);
+    ~Request();
 
     const std::string &getResponse(void);
 

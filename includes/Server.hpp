@@ -7,15 +7,19 @@
 #include <string>
 #include <vector>
 
+// Vector position of server's pollfd
+#define SERVER_FD 0
+
 /*
- * 'Server' class is responsable for
+ * Server class is responsable for
  * connections with clients (including
  * I/O operations) and redirections
  **/
-
 class Server {
    private:
+    // Clients pollfds
     std::vector<pollfd> _fds;
+
     struct sockaddr_in _address;
     socklen_t          _addrlen;
 
@@ -23,15 +27,16 @@ class Server {
     Server(void);
     ~Server();
 
-    void init(const std::string &configFile);
+	void configure(const std::string &configFile);
+    void init(void);
     void start(void);
 
-    class CustomError : public std::exception {
+    class Error : public std::exception {
        private:
         const char *_message;
 
        public:
-        CustomError(const char *message);
+        Error(const char *message);
         const char *what() const throw();
     };
 };
