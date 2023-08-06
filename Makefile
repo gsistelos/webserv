@@ -1,6 +1,6 @@
 NAME		=	webserv
 
-SRCS		=	$(addprefix srcs/, main.cpp Request.cpp Server.cpp)
+SRCS		=	$(addprefix srcs/, Error.cpp main.cpp Request.cpp WebServ.cpp)
 
 OBJS		=	$(SRCS:.cpp=.o)
 
