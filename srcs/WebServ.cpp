@@ -1,9 +1,10 @@
 #include "WebServ.hpp"
 
 #include <signal.h>
+#include <unistd.h>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include "Error.hpp"
 #include "Request.hpp"
@@ -85,54 +86,55 @@ void WebServ::start(void) {
         // Iterate fds to check for events
 
         for (size_t i = 0; i < this->_pollFds.size(); i++) {
-            if (this->_pollFds[i].revents & POLLIN && this->_sockets[i]->getType() == SERVER) {
-                // New client connecting to a server
+            if (this->_pollFds[i].revents & POLLIN) {
+                if (this->_sockets[i]->getType() == SERVER) {
+                    // New client connecting to a server
 
-                std::cout << "New client connecting" << std::endl;
+                    std::cout << "New client connecting" << std::endl;
 
-                this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
-            }
-            else if (this->_pollFds[i].revents & POLLIN && this->_sockets[i]->getType() == CLIENT) {
-                // Incoming data from client
+                    this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
+                } else if (this->_sockets[i]->getType() == CLIENT) {
+                    // Incoming data from client
 
-                size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
-                if (bytesRead == (size_t)-1)
-                    throw Error("Read");
-
-                if (bytesRead == 0) {
-                    // Connection closed by the client
-
-                    std::cout << "Connection closed by client: " << i << std::endl;
-
-                    this->_pollFds.erase(this->_pollFds.begin() + i);
-
-                    delete this->_sockets[i];
-                    this->_sockets.erase(this->_sockets.begin() + i);
-
-                    continue;
-                }
-
-                readBuffer[bytesRead] = '\0';
-                requestBuffer = readBuffer;
-
-                // If there is more to read, keep reading
-
-                while (bytesRead == BUFFER_SIZE) {
-                    bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
+                    size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
                     if (bytesRead == (size_t)-1)
                         throw Error("Read");
 
+                    if (bytesRead == 0) {
+                        // Connection closed by the client
+
+                        std::cout << "Connection closed by client: " << i << std::endl;
+
+                        this->_pollFds.erase(this->_pollFds.begin() + i);
+
+                        delete this->_sockets[i];
+                        this->_sockets.erase(this->_sockets.begin() + i);
+
+                        continue;
+                    }
+
                     readBuffer[bytesRead] = '\0';
+                    requestBuffer = readBuffer;
 
-                    requestBuffer.append(readBuffer);
+                    // If there is more to read, keep reading
+
+                    while (bytesRead == BUFFER_SIZE) {
+                        bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
+                        if (bytesRead == (size_t)-1)
+                            throw Error("Read");
+
+                        readBuffer[bytesRead] = '\0';
+
+                        requestBuffer.append(readBuffer);
+                    }
                 }
-
+            } else if (this->_pollFds[i].revents & POLLOUT) {
                 // Process request and send response
 
                 Request request(requestBuffer);
 
                 if (write(this->_pollFds[i].fd, request.getResponse().c_str(),
-                        request.getResponse().length()) == -1)
+                          request.getResponse().length()) == -1)
                     throw Error("Write");
             }
         }
