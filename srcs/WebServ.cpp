@@ -64,6 +64,7 @@ void WebServ::configure(const std::string &configFile) {
 }
 
 void WebServ::start(void) {
+    std::string requestBuffer;
     while (1) {
         /*
          * poll() will wait for a fd to be ready for I/O operations
@@ -81,7 +82,6 @@ void WebServ::start(void) {
             throw Error("Poll");
 
         char readBuffer[BUFFER_SIZE + 1];
-        std::string requestBuffer;
 
         // Iterate fds to check for events
 
@@ -95,7 +95,7 @@ void WebServ::start(void) {
                     this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
                 } else if (this->_sockets[i]->getType() == CLIENT) {
                     // Incoming data from client
-
+                    std::cout << "Incoming data from client: " << i << std::endl;
                     size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
                     if (bytesRead == (size_t)-1)
                         throw Error("Read");
@@ -128,7 +128,8 @@ void WebServ::start(void) {
                         requestBuffer.append(readBuffer);
                     }
                 }
-            } else if (this->_pollFds[i].revents & POLLOUT) {
+            } else if (this->_pollFds[i].revents & POLLOUT && requestBuffer.length() > 0) {
+                std::cout << "Sending response to client: " << i << std::endl;
                 // Process request and send response
 
                 Request request(requestBuffer);
