@@ -1,37 +1,45 @@
 #include "WebServ.hpp"
 
-#include <fcntl.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
-#include <cerrno>
-#include <cstring>
-#include <cstdlib>
+#include <signal.h>
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
 
 #include "Error.hpp"
 #include "Request.hpp"
 
-#define MAX_CLIENTS 128
 #define TIMEOUT 1 * 60 * 1000
 #define BUFFER_SIZE 30000
-#define SERVER_FD 0
-#define CLIENT_FD 1
+
+bool g_quit = false;
+
+void sighandler(int signo) {
+    if (signo == SIGINT)
+        g_quit = true;
+}
 
 WebServ::WebServ(void) {
 }
 
 WebServ::~WebServ() {
-    for (size_t i = 0; i < this->_fds.size(); i++) {
-        close(this->_fds[i].fd);
+    for (size_t i = 0; i < this->_sockets.size(); i++) {
+        delete this->_sockets[i];
     }
 }
 
 void WebServ::configure(const std::string &configFile) {
+    // Set signal to quit program properly
+
+    g_quit = false;
+
+    struct sigaction act;
+    act.sa_handler = &sighandler;
+    sigfillset(&act.sa_mask);
+    act.sa_flags = SA_RESTART;
+
+    if (sigaction(SIGINT, &act, NULL) == -1)
+        throw Error("Sigaction");
+
     // Open configFile and read all content to a stringstream
 
     std::ifstream file(configFile.c_str());
@@ -48,65 +56,10 @@ void WebServ::configure(const std::string &configFile) {
     std::string token;
     while (fileStream >> token) {
         if (token == "server:")
-            newServer(fileStream);
+            this->_sockets.push_back(new Socket(fileStream, this->_pollFds));
         else
             throw Error("Invalid configFile token: \"" + token + "\"");
     }
-}
-
-void WebServ::newServer(std::stringstream &fileStream) {
-    std::string token;
-    fileStream >> token;
-
-    if (fileStream.fail())
-        throw Error("Invalid content next to \"server:\"");
-
-    // Extract server address and port
-
-    size_t colon = token.find(':');
-    if (colon == std::string::npos)
-        throw Error("Invalid content next to \"server:\"");
-
-    std::string server_addr = token.substr(0, colon);
-    std::string portStr = token.substr(colon + 1, token.length());
-
-    int         port = std::atoi(portStr.c_str());
-
-    // Start server as TCP/IP and set to non-block
-
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket == -1)
-        throw Error("socket");
-
-    fcntl(serverSocket, F_SETFL, O_NONBLOCK);
-
-    struct sockaddr_in address;
-
-    std::memset(&address, 0, sizeof(address));
-
-    // Bind server address and port to socket
-
-    address.sin_family = AF_INET;
-    address.sin_port = htons(port);
-    if (inet_pton(AF_INET, server_addr.c_str(), &address.sin_addr) != 1)
-        throw Error("Invalid server address");
-
-    // Set server address and to listen for incoming connections
-
-    if (bind(serverSocket, (struct sockaddr *)&address, sizeof(address)) == -1)
-        throw Error("bind");
-
-    if (listen(serverSocket, MAX_CLIENTS) == -1)
-        throw Error("Listen");
-
-    // Add server to pollfd vector
-
-    pollfd serverFd;
-    serverFd.fd = serverSocket;
-    serverFd.events = POLLIN | POLLOUT;
-
-    this->_fds.push_back(serverFd);
-    this->_fdIdentifiers.push_back(SERVER_FD);
 }
 
 void WebServ::start(void) {
@@ -118,7 +71,10 @@ void WebServ::start(void) {
          * Otherwise it's incoming data from a client
          **/
 
-        int ready = poll(this->_fds.data(), this->_fds.size(), TIMEOUT);
+        int ready = poll(this->_pollFds.data(), this->_pollFds.size(), TIMEOUT);
+
+        if (g_quit == true)
+            return;
 
         if (ready == -1)
             throw Error("Poll");
@@ -128,41 +84,30 @@ void WebServ::start(void) {
 
         // Iterate fds to check for events
 
-        for (size_t i = 0; i < this->_fds.size(); i++) {
-            if (this->_fds[i].revents & POLLIN && this->_fdIdentifiers[i] == SERVER_FD) {
+        for (size_t i = 0; i < this->_pollFds.size(); i++) {
+            if (this->_pollFds[i].revents & POLLIN && this->_sockets[i]->getType() == SERVER) {
                 // New client connecting to a server
 
                 std::cout << "New client connecting" << std::endl;
 
-                struct sockaddr address;
-                socklen_t       addrlen;
-
-                int clientSocket = accept(this->_fds[i].fd, &address, &addrlen);
-                if (clientSocket == -1)
-                    throw Error("Accept");
-
-                pollfd clientFd;
-                clientFd.fd = clientSocket;
-                clientFd.events = POLLIN | POLLOUT;
-
-                this->_fds.push_back(clientFd);
-                this->_fdIdentifiers.push_back(CLIENT_FD);
+                this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
             }
-            else if (this->_fds[i].revents & POLLIN && this->_fdIdentifiers[i] == CLIENT_FD) {
+            else if (this->_pollFds[i].revents & POLLIN && this->_sockets[i]->getType() == CLIENT) {
                 // Incoming data from client
 
-                std::cout << "Data incoming from client" << std::endl;
-
-                size_t bytesRead = read(this->_fds[i].fd, readBuffer, BUFFER_SIZE);
+                size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
                 if (bytesRead == (size_t)-1)
                     throw Error("Read");
 
                 if (bytesRead == 0) {
                     // Connection closed by the client
 
-                    close(this->_fds[i].fd);
-                    this->_fds.erase(this->_fds.begin() + i);
-                    this->_fdIdentifiers.erase(this->_fdIdentifiers.begin() + i);
+                    std::cout << "Connection closed by client: " << i << std::endl;
+
+                    this->_pollFds.erase(this->_pollFds.begin() + i);
+
+                    delete this->_sockets[i];
+                    this->_sockets.erase(this->_sockets.begin() + i);
 
                     continue;
                 }
@@ -173,7 +118,7 @@ void WebServ::start(void) {
                 // If there is more to read, keep reading
 
                 while (bytesRead == BUFFER_SIZE) {
-                    bytesRead = read(this->_fds[i].fd, readBuffer, BUFFER_SIZE);
+                    bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
                     if (bytesRead == (size_t)-1)
                         throw Error("Read");
 
@@ -186,7 +131,7 @@ void WebServ::start(void) {
 
                 Request request(requestBuffer);
 
-                if (write(this->_fds[i].fd, request.getResponse().c_str(),
+                if (write(this->_pollFds[i].fd, request.getResponse().c_str(),
                         request.getResponse().length()) == -1)
                     throw Error("Write");
             }

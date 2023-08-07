@@ -1,9 +1,6 @@
 #pragma once
 
-#include <poll.h>
-
-#include <string>
-#include <vector>
+#include "Socket.hpp"
 
 /*
  * WebServ class is responsable for
@@ -13,8 +10,8 @@
 class WebServ {
    private:
     // Servers and clients pollfds
-    std::vector<pollfd> _fds;
-    std::vector<int>    _fdIdentifiers;
+    std::vector<pollfd>  _pollFds;
+    std::vector<Socket*> _sockets;
 
    public:
     WebServ(void);
@@ -22,6 +19,4 @@ class WebServ {
 
 	void configure(const std::string &configFile);
     void start(void);
-
-    void newServer(std::stringstream &fileStream);
 };
