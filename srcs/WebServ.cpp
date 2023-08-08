@@ -65,6 +65,7 @@ void WebServ::configure(const std::string &configFile) {
 
 void WebServ::start(void) {
     std::string requestBuffer;
+    int responseReady = 0;
     while (1) {
         /*
          * poll() will wait for a fd to be ready for I/O operations
@@ -83,7 +84,7 @@ void WebServ::start(void) {
 
         char readBuffer[BUFFER_SIZE + 1];
 
-        // Iterate fds to check for events
+        // Iterate sockets to check if there's any incoming data
 
         for (size_t i = 0; i < this->_pollFds.size(); i++) {
             if (this->_pollFds[i].revents & POLLIN) {
@@ -92,6 +93,7 @@ void WebServ::start(void) {
 
                     std::cout << "New client connecting" << std::endl;
 
+                    // Create new client and add it to the pollfds
                     this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
                 } else if (this->_sockets[i]->getType() == CLIENT) {
                     // Incoming data from client
@@ -127,16 +129,22 @@ void WebServ::start(void) {
 
                         requestBuffer.append(readBuffer);
                     }
+                    responseReady = 1;
                 }
-            } else if (this->_pollFds[i].revents & POLLOUT && requestBuffer.length() > 0) {
+            }
+        }
+        // Check sockets to see if there's any response to send
+        for (size_t i = 0; i < this->_pollFds.size(); i++) {
+            if (this->_pollFds[i].revents & POLLOUT && responseReady) {
                 std::cout << "Sending response to client: " << i << std::endl;
-                // Process request and send response
+                // Process request and send response to client
 
                 Request request(requestBuffer);
 
                 if (write(this->_pollFds[i].fd, request.getResponse().c_str(),
                           request.getResponse().length()) == -1)
                     throw Error("Write");
+                responseReady = 0;
             }
         }
     }
