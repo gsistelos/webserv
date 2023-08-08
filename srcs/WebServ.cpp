@@ -134,6 +134,7 @@ void WebServ::start(void) {
             }
         }
         // Check sockets to see if there's any response to send
+        // PS.: idk why i couldn't do this in the for above (can be the buffer loop ?)
         for (size_t i = 0; i < this->_pollFds.size(); i++) {
             if (this->_pollFds[i].revents & POLLOUT && responseReady) {
                 std::cout << "Sending response to client: " << i << std::endl;
