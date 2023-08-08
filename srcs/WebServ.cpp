@@ -91,7 +91,8 @@ void WebServ::start(void) {
                 if (this->_sockets[i]->getType() == SERVER) {
                     // New client connecting to a server
 
-                    std::cout << "New client connecting" << std::endl;
+                    std::cout << "New client fd: [" << i << "] "
+                              << " connecting " << std::endl;
 
                     // Create new client and add it to the pollfds
                     this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
@@ -117,18 +118,6 @@ void WebServ::start(void) {
 
                     readBuffer[bytesRead] = '\0';
                     requestBuffer = readBuffer;
-
-                    // If there is more to read, keep reading
-
-                    while (bytesRead == BUFFER_SIZE) {
-                        bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
-                        if (bytesRead == (size_t)-1)
-                            throw Error("Read");
-
-                        readBuffer[bytesRead] = '\0';
-
-                        requestBuffer.append(readBuffer);
-                    }
                     responseReady = 1;
                 }
             }
