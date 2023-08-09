@@ -12,7 +12,7 @@ class Server {
     int _socketFd;
 
    public:
-    Server(const std::string& serverAddr, int port);
+    Server(const std::string& serverIp, int serverPort);
     ~Server();
 
     int getSocketFd(void);

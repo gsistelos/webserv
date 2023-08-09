@@ -16,15 +16,15 @@ class WebServ {
    private:
     // Servers and clients pollfds
     std::vector<pollfd> _pollFds;
-    std::map<int, Server *> _servers;
-    std::map<int, Client *> _clients;
+    std::map<int, Server*> _servers;
+    std::map<int, Client*> _clients;
 
    public:
     WebServ(void);
     ~WebServ();
 
-    void createServer(std::stringstream &fileStream);
+    void createServer(std::ifstream& fileStream);
     void createClient(int serverFd);
-    void configure(const std::string &configFile);
+    void configure(const std::string& configFile);
     void start(void);
 };
