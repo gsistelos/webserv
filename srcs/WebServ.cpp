@@ -3,6 +3,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <cstdlib>
+
 #include <fstream>
 #include <iostream>
 #include <sstream>

@@ -4,9 +4,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <cstring>
+
 #include <iostream>
 
 #include "Error.hpp"
+
 #define MAX_CLIENTS 128
 
 Server::Server(const std::string& serverAddr, int port) {
