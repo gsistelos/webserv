@@ -2,15 +2,24 @@
 
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 Request::Request(void) {
 }
 
-Request::Request(const std::string &request) {
-    size_t headerEnd = request.find("\r\n\r\n");
+Request::Request(const std::string& request) {
+    size_t headerEnd;
 
-    this->_header = request.substr(0, headerEnd);
-    this->_content = request.substr(headerEnd, request.length());
+    headerEnd = request.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        headerEnd = request.find("\n\n");
+
+    if (headerEnd == std::string::npos)
+        this->_header = request.substr(0, headerEnd);
+    else {
+        this->_header = request.substr(0, headerEnd);
+        this->_content = request.substr(headerEnd, request.length());
+    }
 
     std::string method;
 

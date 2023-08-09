@@ -1,10 +1,10 @@
 NAME		=	webserv
 
-SRCS		=	$(addprefix srcs/, Error.cpp main.cpp Request.cpp Socket.cpp WebServ.cpp)
+SRCS		=	$(addprefix srcs/, Error.cpp main.cpp Request.cpp WebServ.cpp Server.cpp Client.cpp)
 
 OBJS		=	$(SRCS:.cpp=.o)
 
-FLAGS		=	
+FLAGS		=
 
 CXX			=	g++
 
