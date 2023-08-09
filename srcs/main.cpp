@@ -1,26 +1,24 @@
 #include <iostream>
-#include "Server.hpp"
 
-int main( int argc, char** argv )
-{
-	(void)argc;
-	(void)argv;
+#include "WebServ.hpp"
+#include "Error.hpp"
 
-	Server server;
+int main(int argc, char **argv) {
+    WebServ webServ;
 
-	try {
-		server.init("webserv.conf");
-	} catch (std::exception& e) {
-		std::cerr << "Failed to init the server: " << e.what() << std::endl;
-		return 1;
-	}
+    try {
+        if (argc > 2)
+            throw Error("Usage: ./webserv <configFile>");
 
-	try {
-		server.start();
-	} catch (std::exception& e) {
-		std::cerr << "Error: " << e.what() << std::endl;
-		return 1;
-	}
+        if (argc == 2)
+            webServ.configure(argv[1]);
+        else
+            webServ.configure("webserv.conf");
+        webServ.start();
+    } catch (std::exception &e) {
+        std::cerr << "webserv: " << e.what() << std::endl;
+        return 1;
+    }
 
-	return 0;
+    return 0;
 }
