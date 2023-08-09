@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 #include "Error.hpp"
 #include "Request.hpp"
@@ -23,8 +24,12 @@ WebServ::WebServ(void) {
 }
 
 WebServ::~WebServ() {
-    for (size_t i = 0; i < this->_sockets.size(); i++) {
-        delete this->_sockets[i];
+    for (size_t i = 0; i < this->_pollFds.size(); i++) {
+        if (this->_clients.count(this->_pollFds[i].fd)) {
+            delete this->_clients[this->_pollFds[i].fd];
+        } else {
+            delete this->_servers[this->_pollFds[i].fd];
+        }
     }
 }
 
@@ -57,15 +62,59 @@ void WebServ::configure(const std::string &configFile) {
     std::string token;
     while (fileStream >> token) {
         if (token == "server:")
-            this->_sockets.push_back(new Socket(fileStream, this->_pollFds));
+            this->createServer(fileStream);
         else
             throw Error("Invalid configFile token: \"" + token + "\"");
     }
 }
 
+void WebServ::createServer(std::stringstream &fileStream) {
+    std::string token;
+    fileStream >> token;
+
+    if (fileStream.fail())
+        throw Error("Invalid content next to \"server:\"");
+
+    // Extract server address and port
+
+    size_t colon = token.find(':');
+    if (colon == std::string::npos)
+        throw Error("Invalid content next to \"server:\"");
+
+    std::string server_addr = token.substr(0, colon);
+    std::string portStr = token.substr(colon + 1, token.length());
+
+    int port = std::atoi(portStr.c_str());
+
+    // TODO: create a .conf class that store all server configurations, and send it to the "Server" constructor instead of server_addr and port
+    Server *newServer = new Server(server_addr, port);
+
+    // Add server fd to pollfd vector
+    pollfd pollFd;
+    pollFd.fd = newServer->getSocketFd();
+    pollFd.events = POLLIN | POLLOUT;
+
+    this->_pollFds.push_back(pollFd);
+    this->_servers.insert(std::pair<int, Server *>(pollFd.fd, newServer));
+    std::cout << "Server criado" << std::endl;
+}
+
+void WebServ::createClient(int serverFd) {
+    // TODO: Store others datas inside client like request, response, etc
+    Client *newClient = new Client(serverFd);
+
+    pollfd pollFd;
+    pollFd.fd = newClient->getSocketFd();
+    pollFd.events = POLLIN | POLLOUT;
+
+    this->_pollFds.push_back(pollFd);
+    this->_clients.insert(std::pair<int, Client *>(pollFd.fd, newClient));
+}
+
 void WebServ::start(void) {
     std::string requestBuffer;
     int responseReady = 0;
+
     while (1) {
         /*
          * poll() will wait for a fd to be ready for I/O operations
@@ -73,71 +122,60 @@ void WebServ::start(void) {
          * If it's the SERVER_FD, it's a incoming conenction
          * Otherwise it's incoming data from a client
          **/
-
         int ready = poll(this->_pollFds.data(), this->_pollFds.size(), TIMEOUT);
+        if (ready == -1)
+            throw Error("Poll");
 
         if (g_quit == true)
             return;
-
-        if (ready == -1)
-            throw Error("Poll");
 
         char readBuffer[BUFFER_SIZE + 1];
 
         // Iterate sockets to check if there's any incoming data
 
         for (size_t i = 0; i < this->_pollFds.size(); i++) {
-            if (this->_pollFds[i].revents & POLLIN) {
-                if (this->_sockets[i]->getType() == SERVER) {
-                    // New client connecting to a server
+            if (this->_pollFds[i].revents & POLLIN && this->_servers.count(this->_pollFds[i].fd)) {
+                std::cout << "Pollin no server fd: " << this->_pollFds[i].fd << std::endl;
+                // Create new client and add it to the pollfds
+                this->createClient(this->_pollFds[i].fd);
 
-                    std::cout << "New client connecting" << std::endl;
+            } else if (this->_pollFds[i].revents & POLLIN && this->_clients.count(this->_pollFds[i].fd)) {
+                // Incoming data from client
+                std::cout << "Incoming data from client fd: " << this->_pollFds[i].fd << std::endl;
+                size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
 
-                    // Create new client and add it to the pollfds
-                    this->_sockets.push_back(new Socket(this->_pollFds[i].fd, this->_pollFds));
-                } else if (this->_sockets[i]->getType() == CLIENT) {
-                    // Incoming data from client
-                    std::cout << "Incoming data from client: " << i << std::endl;
-                    size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
-                    if (bytesRead == (size_t)-1)
-                        throw Error("Read");
+                if (bytesRead == (size_t)-1) {
+                    std::cout << "Error while reading" << std::endl;
 
-                    if (bytesRead == 0) {
-                        // Connection closed by the client
+                    this->_pollFds.erase(this->_pollFds.begin() + i);
 
-                        std::cout << "Connection closed by client: " << i << std::endl;
+                    delete this->_clients[this->_pollFds[i].fd];
+                    this->_clients.erase(this->_pollFds[i].fd);
 
-                        this->_pollFds.erase(this->_pollFds.begin() + i);
+                    continue;
+                } else if (bytesRead == 0) {
+                    // Nothing to read, disconnect client
+                    std::cout << "Client fd: " << this->_pollFds[i].fd << " has been disconnected" << std::endl;
 
-                        delete this->_sockets[i];
-                        this->_sockets.erase(this->_sockets.begin() + i);
+                    this->_pollFds.erase(this->_pollFds.begin() + i);
 
-                        continue;
-                    }
+                    delete this->_clients[this->_pollFds[i].fd];
+                    this->_clients.erase(this->_pollFds[i].fd);
 
-                    readBuffer[bytesRead] = '\0';
-                    requestBuffer = readBuffer;
-
-                    // If there is more to read, keep reading
-
-                    while (bytesRead == BUFFER_SIZE) {
-                        bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
-                        if (bytesRead == (size_t)-1)
-                            throw Error("Read");
-
-                        readBuffer[bytesRead] = '\0';
-
-                        requestBuffer.append(readBuffer);
-                    }
-                    responseReady = 1;
+                    continue;
                 }
+
+                readBuffer[bytesRead] = '\0';
+                requestBuffer = readBuffer;
+
+                responseReady = 1;
             }
         }
         // Check sockets to see if there's any response to send
         // PS.: idk why i couldn't do this in the for above (can be the buffer loop ?)
         for (size_t i = 0; i < this->_pollFds.size(); i++) {
             if (this->_pollFds[i].revents & POLLOUT && responseReady) {
-                std::cout << "Sending response to client: " << i << std::endl;
+                std::cout << "Sending response to client fd: " << this->_pollFds[i].fd << std::endl;
                 // Process request and send response to client
 
                 Request request(requestBuffer);
