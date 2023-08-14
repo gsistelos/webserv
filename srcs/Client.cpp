@@ -1,10 +1,10 @@
 #include "Client.hpp"
 
-#include <unistd.h>
 #include <arpa/inet.h>
+#include <unistd.h>
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 #include "Error.hpp"
@@ -96,7 +96,6 @@ void Client::request(const std::string& request) {
         return;
     }
 
-    this->_header = request.substr(0, headerEnd);
     this->_header = request.substr(0, headerEnd);
     this->_content = request.substr(headerEnd);
 
