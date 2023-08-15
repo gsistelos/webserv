@@ -1,13 +1,14 @@
 #include "Request.hpp"
 
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include <unistd.h>
 
+#include <fstream>
+#include <iostream>
+#include <sstream>
 Request::Request(void) {
 }
 
-Request::Request(const std::string& request) {
+Request::Request(const std::string &request) {
     size_t headerEnd;
 
     headerEnd = request.find("\r\n\r\n");
@@ -52,9 +53,9 @@ void Request::getMethod(void) {
     headerStream >> page;
 
     if (page == "/")
-        page = "./pages/index.html";
+        page = "./pages/home/index.html";
     else
-        page = "./pages" + page;
+        page = "./pages/upload/index.html";
 
     std::ifstream file(page.c_str());
     if (!file) {
@@ -79,11 +80,23 @@ void Request::getMethod(void) {
 }
 
 void Request::postMethod(void) {
-    std::ofstream outputFile("file.xml");
-    outputFile.write(_content.c_str(), _content.length());
-    outputFile.close();
+    int pid = fork();
+    std::string eae = "cgi-bin/upload.py";
+    char **argv = (char **)malloc(sizeof(char *) * 2);
+    argv[0] = strdup(eae.c_str());
+    argv[1] = NULL;
 
-    getMethod();
+    if (pid == 0) {
+        if (execve("cgi-bin/upload.py", argv, NULL) == -1) {
+            std::cout << "Error: execve failed" << std::endl;
+            exit(1);
+        }
+    }
+    // std::ofstream outputFile("file.xml");
+    // outputFile.write(_content.c_str(), _content.length());
+    // outputFile.close();
+
+    // getMethod();
 }
 
 void Request::deleteMethod(void) {
