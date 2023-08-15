@@ -80,6 +80,23 @@ void Request::getMethod(void) {
 }
 
 void Request::postMethod(void) {
+    int pid = fork();
+    std::string eae = "cgi-bin/upload.py";
+    char argv = (char)malloc(sizeof(char) 2);
+    argv[0] = strdup(eae.c_str());
+    argv[1] = NULL;
+
+    if (pid == 0) {
+        if (execve("cgi-bin/upload.py", argv, NULL) == -1) {
+            std::cout << "Error: execve failed" << std::endl;
+            exit(1);
+        }
+    }
+    // std::ofstream outputFile("file.xml");
+    // outputFile.write(_content.c_str(), _content.length());
+    // outputFile.close();
+
+    // getMethod();
 }
 
 void Request::deleteMethod(void) {
