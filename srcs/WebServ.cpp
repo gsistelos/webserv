@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "Error.hpp"
-#include "Request.hpp"
 
 #define TIMEOUT 1 * 60 * 1000
 #define BUFFER_SIZE 30000
@@ -107,8 +106,44 @@ void WebServ::createClient(int serverFd) {
     this->_clients.insert(std::pair<int, Client*>(pollFd.fd, newClient));
 }
 
+void WebServ::destroyClient(int index) {
+    delete this->_clients[this->_pollFds[index].fd];
+    this->_clients.erase(this->_pollFds[index].fd);
+
+    this->_pollFds.erase(this->_pollFds.begin() + index);
+}
+
+void WebServ::handlePollin(int index) {
+    if (this->_servers.count(this->_pollFds[index].fd))
+        this->createClient(this->_pollFds[index].fd);
+    else {
+        std::cout << "Incoming data from client socketFd: " << this->_pollFds[index].fd << std::endl;
+
+        char readBuffer[BUFFER_SIZE + 1];
+
+        size_t bytesRead = read(this->_pollFds[index].fd, readBuffer, BUFFER_SIZE);
+
+        if (bytesRead == (size_t)-1)
+            throw Error("Read");
+        else if (bytesRead == 0) {
+            destroyClient(index);
+            return;
+        }
+
+        readBuffer[bytesRead] = '\0';
+
+        this->_clients[this->_pollFds[index].fd]->request(readBuffer);
+
+        if (this->_pollFds[index].revents & POLLOUT) {
+            if (write(this->_pollFds[index].fd,
+                this->_clients[this->_pollFds[index].fd]->getResponse().c_str(),
+                this->_clients[this->_pollFds[index].fd]->getResponse().length()) == -1)
+                throw Error("Write");
+        }
+    }
+}
+
 void WebServ::start(void) {
-    char readBuffer[BUFFER_SIZE + 1];
 
     while (1) {
         /*
@@ -128,42 +163,10 @@ void WebServ::start(void) {
 
         // Iterate sockets to check if there's any incoming data
 
-        for (size_t i = 0; i < this->_pollFds.size(); i++) {
-            if (this->_pollFds[i].revents & POLLIN && this->_servers.count(this->_pollFds[i].fd))
-                this->createClient(this->_pollFds[i].fd);
-            else if (this->_pollFds[i].revents & POLLIN && this->_clients.count(this->_pollFds[i].fd)) {
-                std::cout << "Incoming data from client socketFd: " << this->_pollFds[i].fd << std::endl;
-
-                size_t bytesRead = read(this->_pollFds[i].fd, readBuffer, BUFFER_SIZE);
-
-                if (bytesRead == (size_t)-1) {
-                    std::cout << "Error while reading" << std::endl;
-
-                    this->_pollFds.erase(this->_pollFds.begin() + i);
-
-                    delete this->_clients[this->_pollFds[i].fd];
-                    this->_clients.erase(this->_pollFds[i].fd);
-
-                    continue;
-                } else if (bytesRead == 0) {
-                    this->_pollFds.erase(this->_pollFds.begin() + i);
-
-                    delete this->_clients[this->_pollFds[i].fd];
-                    this->_clients.erase(this->_pollFds[i].fd);
-
-                    continue;
-                }
-
-                readBuffer[bytesRead] = '\0';
-
-                if (this->_pollFds[i].revents & POLLOUT && this->_clients.count(this->_pollFds[i].fd)) {
-                    Request request(readBuffer);
-
-                    if (write(this->_pollFds[i].fd, request.getResponse().c_str(),
-                        request.getResponse().length()) == -1)
-                        throw Error("Write");
-                }
-            }
+        size_t startSize = this->_pollFds.size();
+        for (size_t i = 0; i < startSize; i++) {
+            if (this->_pollFds[i].revents & POLLIN)
+                handlePollin(i);
         }
     }
 }

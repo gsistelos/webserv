@@ -23,8 +23,10 @@ class WebServ {
     WebServ(void);
     ~WebServ();
 
+    void configure(const std::string& configFile);
     void createServer(std::ifstream& fileStream);
     void createClient(int serverFd);
-    void configure(const std::string& configFile);
+    void destroyClient(int index);
+    void handlePollin(int index);
     void start(void);
 };
