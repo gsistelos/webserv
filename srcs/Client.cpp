@@ -98,7 +98,7 @@ void Client::postMethod(void) {
     env.push_back(strdup(contentType.c_str()));
     env.push_back(strdup("DOCUMENT_ROOT=./"));
     env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
-    env.push_back(strdup("HTTP_COOKIE=piru=coco; wordpress_test_cookie=WP"));
+    env.push_back(strdup("HTTP_COOKIE="));
     env.push_back(strdup("PATH_INFO="));
     env.push_back(strdup("PATH_TRANSLATED=.//"));
     env.push_back(strdup("QUERY_STRING="));
