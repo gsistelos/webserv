@@ -1,11 +1,15 @@
 #include "Client.hpp"
 
 #include <arpa/inet.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include "Error.hpp"
 

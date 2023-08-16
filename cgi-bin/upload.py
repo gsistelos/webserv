@@ -10,6 +10,11 @@ fileitem = form['filename']
 
 # Test if the file was uploaded
 if fileitem.filename:
+    # Check if directory exists
+    if not os.path.exists(os.getcwd() + '/cgi-bin/tmp'):
+        os.makedirs(os.getcwd() + '/cgi-bin/tmp')
+
+    # Create and write to file
     open(os.getcwd() + '/cgi-bin/tmp/' +
          os.path.basename(fileitem.filename), 'wb').write(fileitem.file.read())
     message = 'The file "' + \
