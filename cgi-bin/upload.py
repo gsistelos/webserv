@@ -1,21 +1,23 @@
 #!/usr/bin/python3
+
 import cgi
 import os
-import cgitb
-cgitb.enable()
+
 form = cgi.FieldStorage()
+
+# Get filename here
 fileitem = form['filename']
+
+# Test if the file was uploaded
 if fileitem.filename:
-    fn = os.path.basename(fileitem.filename)
-    open('/tmp/' + fn, 'wb').write(fileitem.file.read())
-    message = 'The file "' + fn + '" was uploaded successfully'
-
+    open(os.getcwd() + '/cgi-bin/tmp/' +
+         os.path.basename(fileitem.filename), 'wb').write(fileitem.file.read())
+    message = 'The file "' + \
+        os.path.basename(fileitem.filename) + \
+        '" was uploaded to ' + os.getcwd() + '/cgi-bin/tmp'
 else:
-    message = 'No file was uploaded'
+    message = 'Uploading Failed'
 
-print("Content-Type: text/html\r\n")
-print("<html>")
-print("<body>")
-print("<p>Koe</p>")
-print("</body>")
-print("</html>")
+print("Content-Type: text/html;charset=utf-8")
+print("Content-type:text/html\r\n")
+print("<H1> " + message + " </H1>")

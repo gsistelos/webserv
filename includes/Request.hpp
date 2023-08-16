@@ -12,13 +12,14 @@ class Request {
     std::string _header;
     std::string _content;
     std::string _response;
+    std::string _request;
 
    public:
     Request(void);
     Request(const std::string& request);
     ~Request();
 
-    const std::string &getResponse(void);
+    const std::string& getResponse(void);
 
     void getMethod(void);
     void postMethod(void);

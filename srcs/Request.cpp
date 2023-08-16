@@ -11,6 +11,7 @@ Request::Request(void) {
 Request::Request(const std::string &request) {
     size_t headerEnd;
 
+    _request = request;
     headerEnd = request.find("\r\n\r\n");
     if (headerEnd == std::string::npos)
         headerEnd = request.find("\n\n");
@@ -31,9 +32,38 @@ Request::Request(const std::string &request) {
 
     if (method == "GET")
         getMethod();
-    else if (method == "POST")
-        postMethod();
-    else if (method == "DELETE")
+    else if (method == "POST") {
+        std::string eae = "cgi-bin/upload.py";
+        char **argv = (char **)malloc(sizeof(char *) * 2);
+        argv[0] = strdup(eae.c_str());
+        argv[1] = NULL;
+
+        char **env = (char **)malloc(sizeof(char *) * 2);
+        env[0] = strdup("REQUEST_METHOD=POST");
+        env[1] = NULL;
+
+        int pipefd[2];
+        if (pipe(pipefd) == -1) {
+            std::cout << "Error: pipe creation failed" << std::endl;
+            exit(1);
+        }
+
+        int pid = fork();
+        if (pid == 0) {
+            close(pipefd[1]);
+            dup2(pipefd[0], STDIN_FILENO);
+            close(pipefd[0]);
+            if (execve("cgi-bin/upload.py", argv, env) == -1) {
+                std::cout << "Error: execve failed" << std::endl;
+                exit(1);
+            }
+        } else {
+            close(pipefd[0]);
+            write(pipefd[1], _request.c_str(), _request.length());
+            close(pipefd[1]);
+            waitpid(pid, NULL, 0);
+        }
+    } else if (method == "DELETE")
         deleteMethod();
     else
         _response = "HTTP/1.1 400 Method Not Supported\r\n\r\n";
@@ -63,6 +93,7 @@ void Request::getMethod(void) {
         return;
     }
 
+    // pega o conteudo da pagina html e retorna ao cliente
     std::ostringstream contentStream;
     contentStream << file.rdbuf();
     file.close();
@@ -80,17 +111,43 @@ void Request::getMethod(void) {
 }
 
 void Request::postMethod(void) {
-    int pid = fork();
     std::string eae = "cgi-bin/upload.py";
     char **argv = (char **)malloc(sizeof(char *) * 2);
     argv[0] = strdup(eae.c_str());
     argv[1] = NULL;
 
+    std::cout << "CONTENTTTTT: " << _content << std::endl;
+    std::cout << "End content" << std::endl;
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        std::cout << "Error: pipe creation failed" << std::endl;
+        exit(1);
+    }
+
+    int pid = fork();
     if (pid == 0) {
-        if (execve("cgi-bin/upload.py", argv, NULL) == -1) {
-            std::cout << "Error: execve failed" << std::endl;
-            exit(1);
+        // Ler e imprimir o conteúdo do pipe[0]
+        char buffer[1024];
+        int bytesRead;
+        std::cout << "Start pipe 0" << std::endl
+                  << std::endl;
+        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
+            std::cout.write(buffer, bytesRead);
         }
+        std::cout << "End pipe 0" << std::endl
+                  << std::endl;
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        // if (execve("cgi-bin/upload.py", argv, NULL) == -1) {
+        //     std::cout << "Error: execve failed" << std::endl;
+        //     exit(1);
+        // }
+    } else {
+        close(pipefd[0]);
+        write(pipefd[1], _content.c_str(), _content.length());
+        close(pipefd[1]);
+        waitpid(pid, NULL, 0);
     }
 }
 
