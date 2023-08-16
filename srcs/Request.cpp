@@ -13,6 +13,7 @@ Request::Request(const std::string &request) {
 
     _request = request;
     headerEnd = request.find("\r\n\r\n");
+
     if (headerEnd == std::string::npos)
         headerEnd = request.find("\n\n");
 
@@ -33,36 +34,7 @@ Request::Request(const std::string &request) {
     if (method == "GET")
         getMethod();
     else if (method == "POST") {
-        std::string eae = "cgi-bin/upload.py";
-        char **argv = (char **)malloc(sizeof(char *) * 2);
-        argv[0] = strdup(eae.c_str());
-        argv[1] = NULL;
-
-        char **env = (char **)malloc(sizeof(char *) * 2);
-        env[0] = strdup("REQUEST_METHOD=POST");
-        env[1] = NULL;
-
-        int pipefd[2];
-        if (pipe(pipefd) == -1) {
-            std::cout << "Error: pipe creation failed" << std::endl;
-            exit(1);
-        }
-
-        int pid = fork();
-        if (pid == 0) {
-            close(pipefd[1]);
-            dup2(pipefd[0], STDIN_FILENO);
-            close(pipefd[0]);
-            if (execve("cgi-bin/upload.py", argv, env) == -1) {
-                std::cout << "Error: execve failed" << std::endl;
-                exit(1);
-            }
-        } else {
-            close(pipefd[0]);
-            write(pipefd[1], _request.c_str(), _request.length());
-            close(pipefd[1]);
-            waitpid(pid, NULL, 0);
-        }
+        postMethod();
     } else if (method == "DELETE")
         deleteMethod();
     else
@@ -111,13 +83,40 @@ void Request::getMethod(void) {
 }
 
 void Request::postMethod(void) {
-    std::string eae = "cgi-bin/upload.py";
-    char **argv = (char **)malloc(sizeof(char *) * 2);
-    argv[0] = strdup(eae.c_str());
-    argv[1] = NULL;
+    std::cout << "Start POST request" << std::endl;
+    std::cout << _request << std::endl;
+    std::cout << "End POST request" << std::endl;
 
-    std::cout << "CONTENTTTTT: " << _content << std::endl;
-    std::cout << "End content" << std::endl;
+    size_t contentTypeStart = _request.find("Content-Type: ") + 14;
+    size_t contentTypeEnd = _request.find("\r\n", contentTypeStart);
+    std::string contentType = "CONTENT_TYPE=" + _request.substr(contentTypeStart, contentTypeEnd - contentTypeStart);
+
+    std::vector<char *> argv;
+    argv.push_back(strdup("cgi-bin/upload.py"));
+    argv.push_back(NULL);
+
+    std::vector<char *> env;
+    env.push_back(strdup("AUTH_TYPE=Basic"));
+    env.push_back(strdup("CONTENT_LENGTH=213"));
+    env.push_back(strdup(contentType.c_str()));
+    env.push_back(strdup("DOCUMENT_ROOT=./"));
+    env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
+    env.push_back(strdup("HTTP_COOKIE=piru=coco; wordpress_test_cookie=WP"));
+    env.push_back(strdup("PATH_INFO="));
+    env.push_back(strdup("PATH_TRANSLATED=.//"));
+    env.push_back(strdup("QUERY_STRING="));
+    env.push_back(strdup("REDIRECT_STATUS=200"));
+    env.push_back(strdup("REMOTE_ADDR=localhost:8002"));
+    env.push_back(strdup("REQUEST_METHOD=POST"));
+    env.push_back(strdup("REQUEST_URI=/cgi-bin/upload.py"));
+    env.push_back(strdup("SCRIPT_FILENAME=upload.py"));
+    env.push_back(strdup("SCRIPT_NAME=cgi-bin/upload.py"));
+    env.push_back(strdup("SERVER_NAME=localhost"));
+    env.push_back(strdup("SERVER_PORT=8080"));
+    env.push_back(strdup("SERVER_PROTOCOL=HTTP/1.1"));
+    env.push_back(strdup("SERVER_SOFTWARE=AMANIX"));
+    env.push_back(NULL);
+
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         std::cout << "Error: pipe creation failed" << std::endl;
@@ -126,28 +125,26 @@ void Request::postMethod(void) {
 
     int pid = fork();
     if (pid == 0) {
-        // Ler e imprimir o conteúdo do pipe[0]
-        char buffer[1024];
-        int bytesRead;
-        std::cout << "Start pipe 0" << std::endl
-                  << std::endl;
-        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer))) > 0) {
-            std::cout.write(buffer, bytesRead);
-        }
-        std::cout << "End pipe 0" << std::endl
-                  << std::endl;
         close(pipefd[1]);
         dup2(pipefd[0], STDIN_FILENO);
         close(pipefd[0]);
-        // if (execve("cgi-bin/upload.py", argv, NULL) == -1) {
-        //     std::cout << "Error: execve failed" << std::endl;
-        //     exit(1);
-        // }
+        if (execve("cgi-bin/upload.py", argv.data(), env.data()) == -1) {
+            std::cout << "Error: execve failed" << std::endl;
+            for (std::vector<char *>::iterator it = argv.begin(); it != argv.end(); ++it)
+                free(*it);
+            for (std::vector<char *>::iterator it = env.begin(); it != env.end(); ++it)
+                free(*it);
+            exit(1);
+        }
     } else {
         close(pipefd[0]);
-        write(pipefd[1], _content.c_str(), _content.length());
+        write(pipefd[1], _request.c_str(), _request.length());
         close(pipefd[1]);
         waitpid(pid, NULL, 0);
+        for (std::vector<char *>::iterator it = argv.begin(); it != argv.end(); ++it)
+            free(*it);
+        for (std::vector<char *>::iterator it = env.begin(); it != env.end(); ++it)
+            free(*it);
     }
 }
 

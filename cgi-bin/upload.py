@@ -18,6 +18,10 @@ if fileitem.filename:
 else:
     message = 'Uploading Failed'
 
-print("Content-Type: text/html;charset=utf-8")
-print("Content-type:text/html\r\n")
-print("<H1> " + message + " </H1>")
+# Response to client
+print("Content-Type: text/html\n")
+print("<html>")
+print("<body>")
+print("<p>", message, "</p>")
+print("<body>")
+print("<html>")
