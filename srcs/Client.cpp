@@ -123,6 +123,10 @@ void Client::postMethod(void) {
         close(pipefd[0]);
         if (execve("cgi-bin/upload.py", argv.data(), env.data()) == -1) {
             std::cout << "Error: execve failed" << std::endl;
+            for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
+                free(*it);
+            for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
+                free(*it);
             exit(1);
         }
     } else {
@@ -130,6 +134,10 @@ void Client::postMethod(void) {
         write(pipefd[1], _request.c_str(), _request.length());
         close(pipefd[1]);
         waitpid(pid, NULL, 0);
+        for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
+            free(*it);
+        for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
+            free(*it);
     }
 }
 
