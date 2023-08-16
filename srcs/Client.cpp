@@ -49,9 +49,9 @@ void Client::getMethod(void) {
     headerStream >> page;
 
     if (page == "/")
-        page = "./pages/index.html";
+        page = "./pages/home/index.html";
     else
-        page = "./pages" + page;
+        page = "./pages/upload/index.html";
 
     std::ifstream file(page.c_str());
     if (!file) {
