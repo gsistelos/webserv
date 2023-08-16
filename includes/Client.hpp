@@ -1,6 +1,7 @@
 #pragma once
 
 #include <netinet/in.h>
+
 #include <string>
 
 class Client {
@@ -11,6 +12,7 @@ class Client {
     std::string _header;
     std::string _content;
     std::string _response;
+    std::string _request;
 
    public:
     Client(int serverFd);

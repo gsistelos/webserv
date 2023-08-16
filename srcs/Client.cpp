@@ -1,11 +1,15 @@
 #include "Client.hpp"
 
 #include <arpa/inet.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include "Error.hpp"
 
@@ -76,11 +80,69 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    std::ofstream outputFile("file.xml");
-    outputFile.write(_content.c_str(), _content.length());
-    outputFile.close();
+    std::cout << "Start POST request" << std::endl;
+    std::cout << _request << std::endl;
+    std::cout << "End POST request" << std::endl;
 
-    getMethod();
+    size_t contentTypeStart = _request.find("Content-Type: ") + 14;
+    size_t contentTypeEnd = _request.find("\r\n", contentTypeStart);
+    std::string contentType = "CONTENT_TYPE=" + _request.substr(contentTypeStart, contentTypeEnd - contentTypeStart);
+
+    std::vector<char*> argv;
+    argv.push_back(strdup("cgi-bin/upload.py"));
+    argv.push_back(NULL);
+
+    std::vector<char*> env;
+    env.push_back(strdup("AUTH_TYPE=Basic"));
+    env.push_back(strdup("CONTENT_LENGTH=213"));
+    env.push_back(strdup(contentType.c_str()));
+    env.push_back(strdup("DOCUMENT_ROOT=./"));
+    env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
+    env.push_back(strdup("HTTP_COOKIE=piru=coco; wordpress_test_cookie=WP"));
+    env.push_back(strdup("PATH_INFO="));
+    env.push_back(strdup("PATH_TRANSLATED=.//"));
+    env.push_back(strdup("QUERY_STRING="));
+    env.push_back(strdup("REDIRECT_STATUS=200"));
+    env.push_back(strdup("REMOTE_ADDR=localhost:8002"));
+    env.push_back(strdup("REQUEST_METHOD=POST"));
+    env.push_back(strdup("REQUEST_URI=/cgi-bin/upload.py"));
+    env.push_back(strdup("SCRIPT_FILENAME=upload.py"));
+    env.push_back(strdup("SCRIPT_NAME=cgi-bin/upload.py"));
+    env.push_back(strdup("SERVER_NAME=localhost"));
+    env.push_back(strdup("SERVER_PORT=8080"));
+    env.push_back(strdup("SERVER_PROTOCOL=HTTP/1.1"));
+    env.push_back(strdup("SERVER_SOFTWARE=AMANIX"));
+    env.push_back(NULL);
+
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        std::cout << "Error: pipe creation failed" << std::endl;
+        exit(1);
+    }
+
+    int pid = fork();
+    if (pid == 0) {
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        if (execve("cgi-bin/upload.py", argv.data(), env.data()) == -1) {
+            std::cout << "Error: execve failed" << std::endl;
+            for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
+                free(*it);
+            for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
+                free(*it);
+            exit(1);
+        }
+    } else {
+        close(pipefd[0]);
+        write(pipefd[1], _request.c_str(), _request.length());
+        close(pipefd[1]);
+        waitpid(pid, NULL, 0);
+        for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
+            free(*it);
+        for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
+            free(*it);
+    }
 }
 
 void Client::deleteMethod(void) {
@@ -90,6 +152,7 @@ void Client::deleteMethod(void) {
 void Client::request(const std::string& request) {
     size_t headerEnd;
 
+    _request = request;
     headerEnd = request.find("\r\n\r\n");
     if (headerEnd == std::string::npos) {
         this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
