@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 #include <cstdlib>
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -51,7 +50,6 @@ void WebServ::configure(const std::string& configFile) {
     std::ifstream file(configFile.c_str());
     if (!file)
         throw Error("Failed to open \"" + configFile + "\"");
-
 
     std::string token;
     while (file >> token) {
@@ -136,15 +134,14 @@ void WebServ::handlePollin(int index) {
 
         if (this->_pollFds[index].revents & POLLOUT) {
             if (write(this->_pollFds[index].fd,
-                this->_clients[this->_pollFds[index].fd]->getResponse().c_str(),
-                this->_clients[this->_pollFds[index].fd]->getResponse().length()) == -1)
+                      this->_clients[this->_pollFds[index].fd]->getResponse().c_str(),
+                      this->_clients[this->_pollFds[index].fd]->getResponse().length()) == -1)
                 throw Error("Write");
         }
     }
 }
 
 void WebServ::start(void) {
-
     while (1) {
         /*
          * poll() will wait for a fd to be ready for I/O operations
@@ -163,8 +160,7 @@ void WebServ::start(void) {
 
         // Iterate sockets to check if there's any incoming data
 
-        size_t startSize = this->_pollFds.size();
-        for (size_t i = 0; i < startSize; i++) {
+        for (size_t i = 0; i < this->_pollFds.size(); i++) {
             if (this->_pollFds[i].revents & POLLIN)
                 handlePollin(i);
         }
