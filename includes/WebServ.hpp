@@ -15,7 +15,7 @@
 class WebServ {
    private:
     // Servers and clients pollfds
-    std::vector<pollfd> _pollFds;
+    std::vector<struct pollfd> _pollFds;
     std::map<int, Server*> _servers;
     std::map<int, Client*> _clients;
 
