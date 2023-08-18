@@ -1,5 +1,8 @@
 #include "Cgi.hpp"
 
+#include <cstdlib>
+#include <cstring>
+
 Cgi::Cgi(void) {
 }
 
