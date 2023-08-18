@@ -13,13 +13,14 @@
 
 #include "Cgi.hpp"
 #include "Error.hpp"
+#include "Server.hpp"
 
-Client::Client(int serverFd) {
-    // Accept client connection
+Client::Client(Server* server) {
+    this->_server = server;
 
     this->_addrlen = sizeof(this->_address);
 
-    this->_socketFd = accept(serverFd, (sockaddr*)&this->_address, &this->_addrlen);
+    this->_socketFd = accept(server->getSocketFd(), (sockaddr*)&this->_address, &this->_addrlen);
     if (this->_socketFd == -1)
         throw Error("Accept");
 
@@ -37,6 +38,10 @@ Client::Client(int serverFd) {
 Client::~Client() {
     std::cout << "Client socketFd " << this->_socketFd << " closed" << std::endl;
     close(this->_socketFd);
+}
+
+Server* Client::getServer(void) {
+    return this->_server;
 }
 
 int Client::getSocketFd(void) {
