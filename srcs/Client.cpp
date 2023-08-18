@@ -11,6 +11,7 @@
 #include <sstream>
 #include <vector>
 
+#include "Cgi.hpp"
 #include "Error.hpp"
 
 Client::Client(int serverFd) {
@@ -80,39 +81,18 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    std::cout << "Start POST request" << std::endl;
+    std::cout << std::endl
+              << "Start POST request" << std::endl
+              << std::endl;
+    ;
     std::cout << _request << std::endl;
-    std::cout << "End POST request" << std::endl;
+    std::cout << "End POST request" << std::endl
+              << std::endl;
 
-    size_t contentTypeStart = _request.find("Content-Type: ") + 14;
-    size_t contentTypeEnd = _request.find("\r\n", contentTypeStart);
-    std::string contentType = "CONTENT_TYPE=" + _request.substr(contentTypeStart, contentTypeEnd - contentTypeStart);
+    Cgi uploadCgi;
 
-    std::vector<char*> argv;
-    argv.push_back(strdup("cgi-bin/upload.py"));
-    argv.push_back(NULL);
-
-    std::vector<char*> env;
-    env.push_back(strdup("AUTH_TYPE=Basic"));
-    env.push_back(strdup("CONTENT_LENGTH=213"));
-    env.push_back(strdup(contentType.c_str()));
-    env.push_back(strdup("DOCUMENT_ROOT=./"));
-    env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
-    env.push_back(strdup("HTTP_COOKIE="));
-    env.push_back(strdup("PATH_INFO="));
-    env.push_back(strdup("PATH_TRANSLATED=.//"));
-    env.push_back(strdup("QUERY_STRING="));
-    env.push_back(strdup("REDIRECT_STATUS=200"));
-    env.push_back(strdup("REMOTE_ADDR=localhost:8002"));
-    env.push_back(strdup("REQUEST_METHOD=POST"));
-    env.push_back(strdup("REQUEST_URI=/cgi-bin/upload.py"));
-    env.push_back(strdup("SCRIPT_FILENAME=upload.py"));
-    env.push_back(strdup("SCRIPT_NAME=cgi-bin/upload.py"));
-    env.push_back(strdup("SERVER_NAME=localhost"));
-    env.push_back(strdup("SERVER_PORT=8080"));
-    env.push_back(strdup("SERVER_PROTOCOL=HTTP/1.1"));
-    env.push_back(strdup("SERVER_SOFTWARE=AMANIX"));
-    env.push_back(NULL);
+    uploadCgi.setEnv(_request);
+    uploadCgi.setArgv();
 
     int pipefd[2];
     if (pipe(pipefd) == -1) {
@@ -125,12 +105,8 @@ void Client::postMethod(void) {
         close(pipefd[1]);
         dup2(pipefd[0], STDIN_FILENO);
         close(pipefd[0]);
-        if (execve("cgi-bin/upload.py", argv.data(), env.data()) == -1) {
+        if (execve("cgi-bin/upload.py", uploadCgi.getArgv(), uploadCgi.getEnv()) == -1) {
             std::cout << "Error: execve failed" << std::endl;
-            for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
-                free(*it);
-            for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
-                free(*it);
             exit(1);
         }
     } else {
@@ -138,10 +114,6 @@ void Client::postMethod(void) {
         write(pipefd[1], _request.c_str(), _request.length());
         close(pipefd[1]);
         waitpid(pid, NULL, 0);
-        for (std::vector<char*>::iterator it = argv.begin(); it != argv.end(); ++it)
-            free(*it);
-        for (std::vector<char*>::iterator it = env.begin(); it != env.end(); ++it)
-            free(*it);
     }
 }
 
