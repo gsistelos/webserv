@@ -9,9 +9,9 @@
 #include <sstream>
 
 #include "Error.hpp"
+#include "Parser.hpp"
 
 #define TIMEOUT 1 * 60 * 1000
-#define BUFFER_SIZE 30000
 
 bool g_quit = false;
 
@@ -25,10 +25,10 @@ WebServ::WebServ(void) {
 
 WebServ::~WebServ() {
     for (size_t i = 0; i < this->_pollFds.size(); i++) {
-        if (this->_clients.count(this->_pollFds[i].fd))
-            delete this->_clients[this->_pollFds[i].fd];
-        else
+        if (this->_servers.count(this->_pollFds[i].fd))
             delete this->_servers[this->_pollFds[i].fd];
+        else
+            delete this->_clients[this->_pollFds[i].fd];
     }
 }
 
@@ -45,43 +45,24 @@ void WebServ::configure(const std::string& configFile) {
     if (sigaction(SIGINT, &act, NULL) == -1)
         throw Error("Sigaction");
 
-    // Itarate file tokens and set server configurations
+    // Itarate words from config file
 
-    std::ifstream file(configFile.c_str());
-    if (!file)
-        throw Error("Failed to open \"" + configFile + "\"");
+    std::string fileContent = Parser::readFile(configFile);
 
-    std::string token;
-    while (file >> token) {
-        if (token == "server:")
-            this->createServer(file);
+    while (1) {
+        std::string word = Parser::extractWord(fileContent);
+        if (word.empty())
+            break;
+
+        if (word == "server")
+            this->createServer(fileContent);
         else
-            throw Error("Invalid configFile token: \"" + token + "\"");
+            throw Error("Invalid content \"" + word + "\"");
     }
-
-    file.close();
 }
 
-void WebServ::createServer(std::ifstream& file) {
-    // Extract server address and port
-
-    std::string token;
-    file >> token;
-
-    size_t colonPos = token.find(':');
-    if (colonPos == std::string::npos)
-        throw Error("Invalid content next to \"server:\"");
-
-    std::string serverIp = token.substr(0, colonPos);
-    std::string port = token.substr(colonPos + 1);
-
-    int serverPort = std::atoi(port.c_str());
-
-    // TODO: create a .conf class that store all server configurations, and send it to the "Server" constructor instead of serverIp and serverPort
-
-    Server* newServer = new Server(serverIp, serverPort);
-
-    // Add server socketFd to pollfd vector
+void WebServ::createServer(std::string& fileContent) {
+    Server* newServer = new Server(fileContent);
 
     pollfd pollFd;
     pollFd.fd = newServer->getSocketFd();
@@ -92,9 +73,7 @@ void WebServ::createServer(std::ifstream& file) {
 }
 
 void WebServ::createClient(int serverFd) {
-    // TODO: Store other datas inside client like request, response, etc
-
-    Client* newClient = new Client(serverFd);
+    Client* newClient = new Client(this->_servers[serverFd]);
 
     pollfd pollFd;
     pollFd.fd = newClient->getSocketFd();
@@ -115,22 +94,13 @@ void WebServ::handlePollin(int index) {
     if (this->_servers.count(this->_pollFds[index].fd))
         this->createClient(this->_pollFds[index].fd);
     else {
-        std::cout << "Incoming data from client socketFd: " << this->_pollFds[index].fd << std::endl;
-
-        char readBuffer[BUFFER_SIZE + 1];
-
-        size_t bytesRead = read(this->_pollFds[index].fd, readBuffer, BUFFER_SIZE);
-
-        if (bytesRead == (size_t)-1)
-            throw Error("Read");
-        else if (bytesRead == 0) {
-            destroyClient(index);
+        std::string request = this->_clients[this->_pollFds[index].fd]->getServer()->readClientData(this->_pollFds[index].fd);
+        if (request.empty()) {
+            this->destroyClient(index);
             return;
         }
 
-        readBuffer[bytesRead] = '\0';
-
-        this->_clients[this->_pollFds[index].fd]->request(readBuffer);
+        this->_clients[this->_pollFds[index].fd]->request(request);
 
         if (this->_pollFds[index].revents & POLLOUT) {
             if (write(this->_pollFds[index].fd,
