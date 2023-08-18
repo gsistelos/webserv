@@ -81,12 +81,13 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    std::cout << "Start POST request" << std::endl
+    std::cout << std::endl
+              << "Start POST request" << std::endl
               << std::endl;
     ;
-    std::cout << _request << std::endl
+    std::cout << _request << std::endl;
+    std::cout << "End POST request" << std::endl
               << std::endl;
-    std::cout << "End POST request" << std::endl;
 
     Cgi uploadCgi;
 
