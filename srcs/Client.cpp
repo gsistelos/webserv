@@ -98,28 +98,8 @@ void Client::postMethod(void) {
 
     uploadCgi.setEnv(_request);
     uploadCgi.setArgv();
-
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        std::cout << "Error: pipe creation failed" << std::endl;
-        exit(1);
-    }
-
-    int pid = fork();
-    if (pid == 0) {
-        close(pipefd[1]);
-        dup2(pipefd[0], STDIN_FILENO);
-        close(pipefd[0]);
-        if (execve("cgi-bin/upload.py", uploadCgi.getArgv(), uploadCgi.getEnv()) == -1) {
-            std::cout << "Error: execve failed" << std::endl;
-            exit(1);
-        }
-    } else {
-        close(pipefd[0]);
-        write(pipefd[1], _request.c_str(), _request.length());
-        close(pipefd[1]);
-        waitpid(pid, NULL, 0);
-    }
+    uploadCgi.execScript();
+    uploadCgi.createResponse(this->_response);
 }
 
 void Client::deleteMethod(void) {

@@ -7,7 +7,8 @@ class Cgi {
    private:
     std::vector<char*> _argv;
     std::vector<char*> _env;
-
+    int _pipefd[2];
+    int _responseFd[2];
     std::string _response;
     std::string _request;
 
@@ -15,6 +16,8 @@ class Cgi {
     Cgi();
     ~Cgi();
 
+    void createResponse(std::string& clientResponse);
+    void execScript(void);
     // Setters
     void setEnv(std::string& _request);
     void setArgv(void);

@@ -1,5 +1,7 @@
 #include "Cgi.hpp"
 
+#include <unistd.h>
+
 #include <cstdlib>
 #include <cstring>
 
@@ -16,6 +18,47 @@ Cgi::~Cgi(void) {
 void toUpperCase(std::string& content) {
     for (unsigned int i = 0; i < content.length(); ++i) {
         content[i] = std::toupper(content[i]);
+    }
+}
+
+void Cgi::createResponse(std::string& clientResponse) {
+    char buffer[30000];
+    size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
+    this->_response.append("HTTP/1.1 200 OK\r\n");
+    this->_response.append("Content-Type: text/html\r\n");
+    // TODO: check if when u request a page, the content-length is the size of header + content or only content
+    // and then, set the content-lenght below properly.
+    this->_response.append("Content-Length: " + std::to_string(bytesRead) + "\r\n");
+    this->_response.append("\r\n");
+    this->_response.append(buffer);
+    if (bytesRead <= 0) {
+        // TODO: set response to 500 and throw error response
+        return;
+    }
+    clientResponse = this->_response;
+}
+
+void Cgi::execScript(void) {
+    if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
+        std::cout << "Error: pipe creation failed" << std::endl;
+        exit(1);
+    }
+
+    int pid = fork();
+    if (pid == 0) {
+        close(this->_pipefd[1]);
+        dup2(this->_pipefd[0], STDIN_FILENO);
+        dup2(this->_responseFd[1], STDOUT_FILENO);
+        close(this->_pipefd[0]);
+        if (execve("cgi-bin/upload.py", this->getArgv(), this->getEnv()) == -1) {
+            std::cout << "Error: execve failed" << std::endl;
+            exit(1);
+        }
+    } else {
+        close(this->_pipefd[0]);
+        write(this->_pipefd[1], _request.c_str(), _request.length());
+        close(this->_pipefd[1]);
+        waitpid(pid, NULL, 0);
     }
 }
 
