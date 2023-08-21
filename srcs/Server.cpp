@@ -2,14 +2,17 @@
 
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 
+#include "Client.hpp"
 #include "Error.hpp"
 #include "Parser.hpp"
+#include "WebServ.hpp"
 
 #define MAX_CLIENTS 128
 
@@ -18,56 +21,75 @@ Server::Server(std::string& fileContent) {
 
     // Create socket and set to non-block
 
-    this->_socketFd = socket(AF_INET, SOCK_STREAM, 0);
-    if (this->_socketFd == -1)
+    this->_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (this->_fd == -1)
         throw Error("socket");
 
-    fcntl(this->_socketFd, F_SETFL, O_NONBLOCK);
+    fcntl(this->_fd, F_SETFL, O_NONBLOCK);
 
-    this->_addrlen = sizeof(this->_address);
-    std::memset(&this->_address, 0, this->_addrlen);
+    struct sockaddr_in address;
+    std::memset(&address, 0, sizeof(address));
 
     // Bind server socket to address and port
 
-    this->_address.sin_family = AF_INET;
-    this->_address.sin_port = htons(this->_port);
+    address.sin_family = AF_INET;
+    address.sin_port = htons(this->_port);
 
     // TODO: remove forbidden function inet_pton
-    if (inet_pton(AF_INET, this->_ip.c_str(), &this->_address.sin_addr) != 1)
+    if (inet_pton(AF_INET, this->_ip.c_str(), &address.sin_addr) != 1)
         throw Error("Invalid server address");
 
-    if (bind(this->_socketFd, (struct sockaddr*)&this->_address, this->_addrlen) == -1)
+    if (bind(this->_fd, (struct sockaddr*)&address, sizeof(address)) == -1)
         throw Error("bind");
 
     // Set server address to listen for incoming connections
 
-    if (::listen(this->_socketFd, MAX_CLIENTS) == -1)
+    if (::listen(this->_fd, MAX_CLIENTS) == -1)
         throw Error("Listen");
 
-    std::cout << "Created server: " << this->_ip << ":" << this->_port << " on socketFd " << this->_socketFd << std::endl;
+    std::cout << "Created server: " << this->_ip << ":" << this->_port << " on fd " << this->_fd << std::endl;
 }
 
-int Server::getSocketFd(void) {
-    return this->_socketFd;
+Server::~Server() {
 }
 
 const std::string& Server::getRoot(void) {
     return this->_root;
 }
 
-std::string Server::readClientData(int clientFd) {
-    std::cout << "Incoming data from client socketFd: " << clientFd << std::endl;
+size_t Server::getMaxBodySize(void) {
+    return this->_maxBodySize;
+}
 
-    char readBuffer[this->_maxBodySize + 1];
+void Server::handlePollin(int index) {
+    (void)index;
 
-    size_t bytesRead = read(clientFd, readBuffer, this->_maxBodySize);
+    Client* client = new Client(this);
+    WebServ::sockets.push_back(client);
+
+    pollfd pollFd;
+    pollFd.fd = client->getFd();
+    pollFd.events = POLLIN | POLLOUT;
+    WebServ::pollFds.push_back(pollFd);
+}
+
+void Server::readIncomingData(int index, std::string& readBuffer) {
+    int clientFd = WebServ::sockets[index]->getFd();
+
+    std::cout << "Incoming data from client fd: " << clientFd << std::endl;
+
+    std::vector<char> buffer(this->_maxBodySize + 1);
+
+    size_t bytesRead = read(clientFd, buffer.data(), this->_maxBodySize);
 
     if (bytesRead == (size_t)-1)
         throw Error("Read");
+    if (bytesRead == 0)
+        return;
 
-    readBuffer[bytesRead] = '\0';
+    buffer[bytesRead] = '\0';
 
-    return readBuffer;
+    readBuffer = buffer.data();
 }
 
 void Server::configure(std::string& fileContent) {
@@ -156,9 +178,4 @@ void Server::maxBodySize(std::string& fileContent) {
     word = Parser::extractWord(fileContent);
     if (word != ";")
         throw Error("Expected ';'");
-}
-
-Server::~Server() {
-    std::cout << "Server socketFd " << this->_socketFd << " closed" << std::endl;
-    close(this->_socketFd);
 }

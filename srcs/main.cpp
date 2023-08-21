@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "WebServ.hpp"
 #include "Error.hpp"
+#include "WebServ.hpp"
 
 int main(int argc, char **argv) {
     WebServ webServ;
