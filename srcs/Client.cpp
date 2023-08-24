@@ -25,7 +25,7 @@ Client::Client(Server* server) {
 
     this->_fd = accept(server->getFd(), (sockaddr*)&address, &addrlen);
     if (this->_fd == -1)
-        throw Error("Accept");
+        throw Error("accept");
 
     // Get client address and port
     char clientIp[INET_ADDRSTRLEN];
@@ -39,10 +39,6 @@ Client::Client(Server* server) {
 }
 
 Client::~Client() {
-}
-
-const std::string& Client::getResponse(void) {
-    return this->_response;
 }
 
 void Client::setRequest(const std::string& request) {
@@ -70,18 +66,32 @@ void Client::setRequest(const std::string& request) {
 }
 
 void Client::handlePollin(int index) {
-    std::string request;
-    this->_server->readIncomingData(index, request);
-    if (request.empty()) {
+    std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
+
+    size_t bodySize = this->_server->getMaxBodySize();
+
+    std::vector<char> buffer(bodySize + 1);
+
+    size_t bytesRead = read(this->_fd, buffer.data(), bodySize);
+
+    if (bytesRead == (size_t)-1) {
+        std::cerr << "webserv: read: " << strerror(errno) << std::endl;
+        WebServ::removeIndex(index);
+    }
+    if (bytesRead == 0) {
         WebServ::removeIndex(index);
         return;
     }
 
-    this->setRequest(request);
+    buffer[bytesRead] = '\0';
+
+    this->setRequest(buffer.data());
 
     if (WebServ::pollFds[index].revents & POLLOUT) {
-        if (write(this->_fd, this->_response.c_str(), this->_response.length()) == -1)
-            throw Error("Write");
+        if (write(this->_fd, this->_response.c_str(), this->_response.length()) == -1) {
+            std::cerr << "webserv: write: " << strerror(errno) << std::endl;
+            WebServ::removeIndex(index);
+        }
     }
 }
 

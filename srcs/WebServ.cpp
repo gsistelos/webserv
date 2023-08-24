@@ -2,6 +2,9 @@
 
 #include <signal.h>
 
+#include <cstring>
+#include <iostream>
+
 #include "Error.hpp"
 #include "Parser.hpp"
 #include "Server.hpp"
@@ -74,8 +77,10 @@ void WebServ::start(void) {
         if (WebServ::quit == true)
             return;
 
-        if (ready == -1)
-            throw Error("poll");
+        if (ready == -1) {
+            std::cerr << "webserv: poll: " << strerror(errno) << std::endl;
+            continue;
+        }
 
         // Iterate sockets to check if there's any incoming data
 
@@ -93,5 +98,6 @@ void WebServ::createServer(std::string& fileContent) {
     pollfd pollFd;
     pollFd.fd = server->getFd();
     pollFd.events = POLLIN | POLLOUT;
+    pollFd.revents = 0;
     WebServ::pollFds.push_back(pollFd);
 }

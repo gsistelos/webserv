@@ -25,7 +25,8 @@ Server::Server(std::string& fileContent) {
     if (this->_fd == -1)
         throw Error("socket");
 
-    fcntl(this->_fd, F_SETFL, O_NONBLOCK);
+    if (fcntl(this->_fd, F_SETFL, O_NONBLOCK))
+        throw Error("fcntl");
 
     struct sockaddr_in address;
     std::memset(&address, 0, sizeof(address));
@@ -37,7 +38,7 @@ Server::Server(std::string& fileContent) {
 
     // TODO: remove forbidden function inet_pton
     if (inet_pton(AF_INET, this->_ip.c_str(), &address.sin_addr) != 1)
-        throw Error("Invalid server address");
+        throw Error("inet_pton");
 
     if (bind(this->_fd, (struct sockaddr*)&address, sizeof(address)) == -1)
         throw Error("bind");
@@ -45,7 +46,7 @@ Server::Server(std::string& fileContent) {
     // Set server address to listen for incoming connections
 
     if (::listen(this->_fd, MAX_CLIENTS) == -1)
-        throw Error("Listen");
+        throw Error("listen");
 
     std::cout << "Created server: " << this->_ip << ":" << this->_port << " on fd " << this->_fd << std::endl;
 }
@@ -64,32 +65,21 @@ size_t Server::getMaxBodySize(void) {
 void Server::handlePollin(int index) {
     (void)index;
 
-    Client* client = new Client(this);
-    WebServ::sockets.push_back(client);
+    Client* client;
+
+    try {
+        client = new Client(this);
+        WebServ::sockets.push_back(client);
+    } catch (std::exception& e) {
+        std::cerr << "webserv: " << e.what() << std::endl;
+        return;
+    }
 
     pollfd pollFd;
     pollFd.fd = client->getFd();
     pollFd.events = POLLIN | POLLOUT;
+    pollFd.revents = 0;
     WebServ::pollFds.push_back(pollFd);
-}
-
-void Server::readIncomingData(int index, std::string& readBuffer) {
-    int clientFd = WebServ::sockets[index]->getFd();
-
-    std::cout << "Incoming data from client fd: " << clientFd << std::endl;
-
-    std::vector<char> buffer(this->_maxBodySize + 1);
-
-    size_t bytesRead = read(clientFd, buffer.data(), this->_maxBodySize);
-
-    if (bytesRead == (size_t)-1)
-        throw Error("Read");
-    if (bytesRead == 0)
-        return;
-
-    buffer[bytesRead] = '\0';
-
-    readBuffer = buffer.data();
 }
 
 void Server::configure(std::string& fileContent) {

@@ -18,7 +18,6 @@ class Server : public Socket {
     size_t getMaxBodySize(void);
 
     void handlePollin(int index);
-    void readIncomingData(int clientFd, std::string& readBuffer);
 
    private:
     std::string _ip;
