@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "Config.hpp"
 #include "Socket.hpp"
 
 /*
@@ -20,13 +21,5 @@ class Server : public Socket {
     void handlePollin(int index);
 
    private:
-    std::string _ip;
-    int _port;
-    std::string _root;
-    size_t _maxBodySize;
-
-    void configure(std::string& fileContent);
-    void listen(std::string& fileContent);
-    void root(std::string& fileContent);
-    void maxBodySize(std::string& fileContent);
+    Config _config;
 };
