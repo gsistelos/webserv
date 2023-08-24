@@ -42,8 +42,6 @@ Client::~Client() {
 }
 
 void Client::setRequest(const std::string& request) {
-    this->_request = request;  // _request will be removed
-
     size_t headerEnd = request.find("\r\n\r\n");
     if (headerEnd == std::string::npos) {
         this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
@@ -129,10 +127,8 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi uploadCgi;
+    Cgi uploadCgi(this->_header, this->_content, this->_response);
 
-    uploadCgi.setEnv(this->_request);
-    uploadCgi.setArgv();
     uploadCgi.execScript();
     uploadCgi.createResponse(this->_response);
 }

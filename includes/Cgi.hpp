@@ -5,19 +5,14 @@
 
 class Cgi {
    public:
-    Cgi();
+    Cgi(const std::string& header, const std::string& content, std::string& response);
     ~Cgi();
-
-    // Setters
-
-    void setEnv(std::string& _request);
-    void setArgv(void);
 
     // Getters
 
     char** getEnv(void);
     char** getArgv(void);
-    char* getEnvFromHeader(std::string headerName);
+    char* getEnvFromHeader(std::string key);
 
     // Methods
 
@@ -29,6 +24,10 @@ class Cgi {
     std::vector<char*> _env;
     int _pipefd[2];
     int _responseFd[2];
-    std::string _response;
-    std::string _request;
+    const std::string& _header;
+    const std::string& _content;
+    std::string& _response;
+
+    void setEnv(void);
+    void setArgv(void);
 };

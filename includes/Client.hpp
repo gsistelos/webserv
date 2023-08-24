@@ -21,7 +21,6 @@ class Client : public Socket {
 
    private:
     Server* _server;
-    std::string _request;  // TODO: remove _request and keep only with _header and _content
     std::string _header;
     std::string _content;
     std::string _response;

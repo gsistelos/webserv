@@ -15,7 +15,9 @@ void toUpperCase(std::string& content) {
     }
 }
 
-Cgi::Cgi(void) {
+Cgi::Cgi(const std::string& header, const std::string& content, std::string& _response) : _header(header), _content(content), _response(_response) {
+    this->setEnv();
+    this->setArgv();
 }
 
 Cgi::~Cgi(void) {
@@ -27,8 +29,7 @@ Cgi::~Cgi(void) {
 
 // Setters
 
-void Cgi::setEnv(std::string& request) {
-    this->_request = request;
+void Cgi::setEnv(void) {
     this->_env.push_back(getEnvFromHeader("Content-Type"));
     this->_env.push_back(getEnvFromHeader("Content-Length"));
     this->_env.push_back(strdup("AUTH_TYPE=Basic"));
@@ -66,12 +67,12 @@ char** Cgi::getArgv(void) {
     return this->_argv.data();
 }
 
-char* Cgi::getEnvFromHeader(std::string name) {
-    size_t startPos = _request.find(name);
-    size_t separator = _request.find(":", startPos);
-    size_t endPos = _request.find("\r\n", separator);
-    toUpperCase(name);
-    std::string env = name + "=" + _request.substr(separator + 2, endPos - separator - 2);
+char* Cgi::getEnvFromHeader(std::string key) {
+    size_t startPos = _header.find(key);
+    size_t separator = _header.find(":", startPos);
+    size_t endPos = _header.find("\r\n", separator);
+    toUpperCase(key);
+    std::string env = key + "=" + _header.substr(separator + 2, endPos - separator - 2);
     env.replace(env.find("-"), 1, "_");
     return strdup(env.c_str());
 }
@@ -115,7 +116,7 @@ void Cgi::execScript(void) {
         }
     } else {
         close(this->_pipefd[0]);
-        write(this->_pipefd[1], _request.c_str(), _request.length());
+        write(this->_pipefd[1], _content.c_str(), _content.length());
         close(this->_pipefd[1]);
         waitpid(pid, NULL, 0);
     }
