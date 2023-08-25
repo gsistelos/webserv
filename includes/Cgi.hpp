@@ -10,16 +10,19 @@ class Cgi {
     int _pipefd[2];
     int _responseFd[2];
     std::string _response;
-    std::string _request;
+    std::string _header;
+    std::string _content;
 
    public:
     Cgi();
     ~Cgi();
 
+    // Methods
+    void execScript(const std::string& requestContent);
     void createResponse(std::string& clientResponse);
-    void execScript(void);
+
     // Setters
-    void setEnv(std::string& _request);
+    void setEnv(const std::string& requestHeader);
     void setArgv(void);
 
     // Getters

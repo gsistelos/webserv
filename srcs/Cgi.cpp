@@ -24,21 +24,25 @@ void toUpperCase(std::string& content) {
 void Cgi::createResponse(std::string& clientResponse) {
     char buffer[30000];
     size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
-    this->_response.append("HTTP/1.1 200 OK\r\n");
-    this->_response.append("Content-Type: text/html\r\n");
-    // TODO: check if when u request a page, the content-length is the size of header + content or only content
-    // and then, set the content-lenght below properly.
-    this->_response.append("Content-Length: " + std::to_string(bytesRead) + "\r\n");
-    this->_response.append("\r\n");
-    this->_response.append(buffer);
+    // TODO: Check if it's necessary to make a header
     if (bytesRead <= 0) {
-        // TODO: set response to 500 and throw error response
-        return;
+        this->_response.append("HTTP/1.1 500 Internal Server Error\r\n");
+        this->_response.append("Content-Type: text/html\r\n");
+        this->_response.append("\r\n");
+        this->_response.append("<html>");
+        this->_response.append("<p> ERROR: CGI Response is empty. </p>");
+        this->_response.append("<html>");
+    } else {
+        this->_response.append("HTTP/1.1 200 OK\r\n");
+        this->_response.append("Content-Type: text/html\r\n");
+        this->_response.append("\r\n");
+        this->_response.append(buffer);
     }
     clientResponse = this->_response;
 }
 
-void Cgi::execScript(void) {
+void Cgi::execScript(const std::string& requestContent) {
+    this->_content = requestContent;
     if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
         std::cout << "Error: pipe creation failed" << std::endl;
         exit(1);
@@ -47,34 +51,38 @@ void Cgi::execScript(void) {
     int pid = fork();
     if (pid == 0) {
         close(this->_pipefd[1]);
+        close(this->_responseFd[0]);
         dup2(this->_pipefd[0], STDIN_FILENO);
         dup2(this->_responseFd[1], STDOUT_FILENO);
         close(this->_pipefd[0]);
-        if (execve("cgi-bin/upload.py", this->getArgv(), this->getEnv()) == -1) {
+        close(this->_responseFd[1]);
+        if (execve(this->_argv[0], this->getArgv(), this->getEnv()) == -1) {
             std::cout << "Error: execve failed" << std::endl;
             exit(1);
         }
     } else {
+        // TODO: create a "setup" method that create the pipes and send the content to the cgi input
         close(this->_pipefd[0]);
-        write(this->_pipefd[1], _request.c_str(), _request.length());
+        write(this->_pipefd[1], this->_content.c_str(), this->_content.length());
         close(this->_pipefd[1]);
-        waitpid(pid, NULL, 0);
     }
 }
 
 // Setters
 void Cgi::setArgv(void) {
+    this->_argv.push_back(strdup("/usr/bin/python3"));
     this->_argv.push_back(strdup("cgi-bin/upload.py"));
     this->_argv.push_back(NULL);
 }
 
-void Cgi::setEnv(std::string& request) {
-    this->_request = request;
+void Cgi::setEnv(const std::string& requestHeader) {
+    this->_header = requestHeader;
     this->_env.push_back(getEnvFromHeader("Content-Type"));
     this->_env.push_back(getEnvFromHeader("Content-Length"));
     this->_env.push_back(strdup("AUTH_TYPE=Basic"));
     this->_env.push_back(strdup("DOCUMENT_ROOT=./"));
     this->_env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
+    // TODO: make getEnvFromHeader return only the value and set the HTTP_COOKIE manually
     this->_env.push_back(strdup("HTTP_COOKIE="));
     this->_env.push_back(strdup("PATH_INFO="));
     this->_env.push_back(strdup("PATH_TRANSLATED=.//"));
@@ -102,11 +110,11 @@ char** Cgi::getArgv(void) {
 }
 
 char* Cgi::getEnvFromHeader(std::string name) {
-    size_t startPos = _request.find(name);
-    size_t separator = _request.find(":", startPos);
-    size_t endPos = _request.find("\r\n", separator);
+    size_t startPos = this->_header.find(name);
+    size_t separator = this->_header.find(":", startPos);
+    size_t endPos = this->_header.find("\r\n", separator);
     toUpperCase(name);
-    std::string env = name + "=" + _request.substr(separator + 2, endPos - separator - 2);
+    std::string env = name + "=" + this->_header.substr(separator + 2, endPos - separator - 2);
     env.replace(env.find("-"), 1, "_");
     return strdup(env.c_str());
 }

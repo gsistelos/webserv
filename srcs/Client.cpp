@@ -96,9 +96,9 @@ void Client::postMethod(void) {
 
     Cgi uploadCgi;
 
-    uploadCgi.setEnv(_request);
+    uploadCgi.setEnv(_header);
     uploadCgi.setArgv();
-    uploadCgi.execScript();
+    uploadCgi.execScript(_content);
     uploadCgi.createResponse(this->_response);
 }
 
