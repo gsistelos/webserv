@@ -8,16 +8,8 @@ class Cgi {
     Cgi(const std::string& header, const std::string& content, std::string& response);
     ~Cgi();
 
-    // Getters
-
-    char** getEnv(void);
-    char** getArgv(void);
-    char* getEnvFromHeader(std::string key);
-
-    // Methods
-
-    void createResponse(std::string& clientResponse);
     void execScript(void);
+    void createResponse(void);
 
    private:
     std::vector<char*> _argv;
@@ -30,4 +22,5 @@ class Cgi {
 
     void setEnv(void);
     void setArgv(void);
+    char* getEnvFromHeader(std::string key);
 };

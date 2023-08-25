@@ -41,28 +41,6 @@ Client::Client(Server* server) {
 Client::~Client() {
 }
 
-void Client::setRequest(const std::string& request) {
-    size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        return;
-    }
-
-    this->_header = request.substr(0, headerEnd);
-    this->_content = request.substr(headerEnd + 4);
-
-    std::string method = Parser::extractWord(this->_header);
-
-    if (method == "GET")
-        getMethod();
-    else if (method == "POST")
-        postMethod();
-    else if (method == "DELETE")
-        deleteMethod();
-    else
-        _response = "HTTP/1.1 400 Method Not Supported\r\n\r\n";
-}
-
 void Client::handlePollin(int index) {
     std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
 
@@ -83,7 +61,27 @@ void Client::handlePollin(int index) {
 
     buffer[bytesRead] = '\0';
 
-    this->setRequest(buffer.data());
+    std::string request(buffer.data());
+
+    size_t headerEnd = request.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+        return;
+    }
+
+    this->_header = request.substr(0, headerEnd);
+    this->_content = request.substr(headerEnd + 4);
+
+    std::string method = Parser::extractWord(this->_header);
+
+    if (method == "GET")
+        getMethod();
+    else if (method == "POST")
+        postMethod();
+    else if (method == "DELETE")
+        deleteMethod();
+    else
+        _response = "HTTP/1.1 400 Method Not Supported\r\n\r\n";
 
     if (WebServ::pollFds[index].revents & POLLOUT) {
         if (write(this->_fd, this->_response.c_str(), this->_response.length()) == -1) {
@@ -130,7 +128,7 @@ void Client::postMethod(void) {
     Cgi uploadCgi(this->_header, this->_content, this->_response);
 
     uploadCgi.execScript();
-    uploadCgi.createResponse(this->_response);
+    uploadCgi.createResponse();
 }
 
 void Client::deleteMethod(void) {

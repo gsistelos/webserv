@@ -15,8 +15,6 @@ class Client : public Socket {
     Client(Server* server);
     ~Client();
 
-    void setRequest(const std::string& request);
-
     void handlePollin(int index);
 
    private:

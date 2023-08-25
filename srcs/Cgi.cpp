@@ -1,13 +1,12 @@
 #include "Cgi.hpp"
 
+#include <errno.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
-
-// Utils
 
 void toUpperCase(std::string& content) {
     for (unsigned int i = 0; i < content.length(); ++i) {
@@ -27,7 +26,69 @@ Cgi::~Cgi(void) {
         free(*it);
 }
 
-// Setters
+void Cgi::execScript(void) {
+    if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
+        std::cout << "webserv: pipe: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    int pid = fork();
+    if (pid == -1) {
+        std::cout << "webserv: fork: " << strerror(errno) << std::endl;
+        return;
+    } else if (pid == 0) {
+        close(this->_pipefd[1]);
+        close(this->_responseFd[0]);
+
+        dup2(this->_pipefd[0], STDIN_FILENO);
+        close(this->_pipefd[0]);
+
+        dup2(this->_responseFd[1], STDOUT_FILENO);
+        close(this->_responseFd[1]);
+
+        execve("cgi-bin/upload.py", this->_argv.data(), this->_env.data());
+        std::cout << "webserv: execve: " << strerror(errno) << std::endl;
+        return;
+    } else {
+        close(this->_pipefd[0]);
+        close(this->_responseFd[1]);
+
+        if (write(this->_pipefd[1], _content.c_str(), _content.length()) == -1)
+            std::cout << "webserv: write: " << strerror(errno) << std::endl;
+        close(this->_pipefd[1]);
+
+        waitpid(pid, NULL, 0);
+    }
+}
+
+void Cgi::createResponse(void) {
+    char buffer[30000 + 1];
+
+    size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
+    close(this->_responseFd[0]);
+    if (bytesRead == (size_t)-1) {
+        std::cout << "webserv: read: " << strerror(errno) << std::endl;
+        return;
+    }
+    if (bytesRead == 0) {
+        this->_response = "HTTP/1.1 500 Internal Server Error\r\n\r\n";
+        return;
+    }
+
+    buffer[bytesRead] = '\0';
+
+    this->_response.clear();
+    this->_response.append("HTTP/1.1 200 OK\r\n");
+    this->_response.append("Content-Type: text/html\r\n");
+    // TODO: check if when u request a page, the content-length is the size of header + content or only content
+    // and then, set the content-lenght below properly.
+    std::ostringstream strBytesRead;
+    strBytesRead << bytesRead;
+
+    this->_response.append("Content-Length: " + strBytesRead.str() + "\r\n");
+    this->_response.append("\r\n");
+    this->_response.append(buffer);
+}
 
 void Cgi::setEnv(void) {
     this->_env.push_back(getEnvFromHeader("Content-Type"));
@@ -57,16 +118,6 @@ void Cgi::setArgv(void) {
     this->_argv.push_back(NULL);
 }
 
-// Getters
-
-char** Cgi::getEnv(void) {
-    return this->_env.data();
-}
-
-char** Cgi::getArgv(void) {
-    return this->_argv.data();
-}
-
 char* Cgi::getEnvFromHeader(std::string key) {
     size_t startPos = _header.find(key);
     size_t separator = _header.find(":", startPos);
@@ -75,49 +126,4 @@ char* Cgi::getEnvFromHeader(std::string key) {
     std::string env = key + "=" + _header.substr(separator + 2, endPos - separator - 2);
     env.replace(env.find("-"), 1, "_");
     return strdup(env.c_str());
-}
-
-// Methods
-
-void Cgi::createResponse(std::string& clientResponse) {
-    char buffer[30000];
-    size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
-    this->_response.append("HTTP/1.1 200 OK\r\n");
-    this->_response.append("Content-Type: text/html\r\n");
-    // TODO: check if when u request a page, the content-length is the size of header + content or only content
-    // and then, set the content-lenght below properly.
-    std::ostringstream strBytesRead;
-    strBytesRead << bytesRead;
-    this->_response.append("Content-Length: " + strBytesRead.str() + "\r\n");
-    this->_response.append("\r\n");
-    this->_response.append(buffer);
-    if (bytesRead <= 0) {
-        // TODO: set response to 500 and throw error response
-        return;
-    }
-    clientResponse = this->_response;
-}
-
-void Cgi::execScript(void) {
-    if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
-        std::cout << "Error: pipe creation failed" << std::endl;
-        exit(1);
-    }
-
-    int pid = fork();
-    if (pid == 0) {
-        close(this->_pipefd[1]);
-        dup2(this->_pipefd[0], STDIN_FILENO);
-        dup2(this->_responseFd[1], STDOUT_FILENO);
-        close(this->_pipefd[0]);
-        if (execve("cgi-bin/upload.py", this->getArgv(), this->getEnv()) == -1) {
-            std::cout << "Error: execve failed" << std::endl;
-            exit(1);
-        }
-    } else {
-        close(this->_pipefd[0]);
-        write(this->_pipefd[1], _content.c_str(), _content.length());
-        close(this->_pipefd[1]);
-        waitpid(pid, NULL, 0);
-    }
 }
