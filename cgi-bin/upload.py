@@ -24,9 +24,6 @@ else:
     message = 'Uploading Failed'
 
 # Response to client
-print("Content-Type: text/html\r\n")
 print("<html>")
-print("<body>")
 print("<p>", message, "</p>")
-print("<body>")
 print("<html>")

@@ -50,6 +50,7 @@ void Cgi::execScript(void) {
         std::cout << "webserv: execve: " << strerror(errno) << std::endl;
         return;
     } else {
+        // TODO: create a "setup" method that create the pipes and send the content to the cgi input
         close(this->_pipefd[0]);
         close(this->_responseFd[1]);
 
@@ -96,6 +97,7 @@ void Cgi::setEnv(void) {
     this->_env.push_back(strdup("AUTH_TYPE=Basic"));
     this->_env.push_back(strdup("DOCUMENT_ROOT=./"));
     this->_env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
+    // TODO: make getEnvFromHeader return only the value and set the HTTP_COOKIE manually
     this->_env.push_back(strdup("HTTP_COOKIE="));
     this->_env.push_back(strdup("PATH_INFO="));
     this->_env.push_back(strdup("PATH_TRANSLATED=.//"));
