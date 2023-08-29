@@ -11,22 +11,23 @@ class Cgi {
     int _responseFd[2];
     std::string _response;
     std::string _header;
-    std::string _content;
 
    public:
     Cgi();
     ~Cgi();
 
     // Methods
-    void execScript(const std::string& requestContent);
-    void createResponse(std::string& clientResponse);
+    void execScript(void);
+    void buildResponse(void);
+    void sendCgiBody(std::string requestContent);
 
     // Setters
     void setEnv(const std::string& requestHeader);
     void setArgv(void);
 
     // Getters
-    char* getEnvFromHeader(std::string headerName);
+    char* getEnvFromHeader(std::string name, std::string key);
     char** getEnv(void);
+    std::string getResponse(void);
     char** getArgv(void);
 };

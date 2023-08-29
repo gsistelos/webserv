@@ -98,8 +98,10 @@ void Client::postMethod(void) {
 
     uploadCgi.setEnv(_header);
     uploadCgi.setArgv();
-    uploadCgi.execScript(_content);
-    uploadCgi.createResponse(this->_response);
+    uploadCgi.sendCgiBody(_content);
+    uploadCgi.execScript();
+    uploadCgi.buildResponse();
+    this->_response = uploadCgi.getResponse();
 }
 
 void Client::deleteMethod(void) {

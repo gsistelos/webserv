@@ -15,15 +15,11 @@ Cgi::~Cgi(void) {
         free(*it);
 }
 
-void toUpperCase(std::string& content) {
-    for (unsigned int i = 0; i < content.length(); ++i) {
-        content[i] = std::toupper(content[i]);
-    }
-}
-
-void Cgi::createResponse(std::string& clientResponse) {
+// Methods
+void Cgi::buildResponse(void) {
     char buffer[30000];
     size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
+    close(this->_responseFd[0]);
     // TODO: Check if it's necessary to make a header
     if (bytesRead <= 0) {
         this->_response.append("HTTP/1.1 500 Internal Server Error\r\n");
@@ -38,33 +34,34 @@ void Cgi::createResponse(std::string& clientResponse) {
         this->_response.append("\r\n");
         this->_response.append(buffer);
     }
-    clientResponse = this->_response;
 }
 
-void Cgi::execScript(const std::string& requestContent) {
-    this->_content = requestContent;
+void Cgi::sendCgiBody(std::string requestContent) {
     if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
         std::cout << "Error: pipe creation failed" << std::endl;
         exit(1);
     }
 
+    write(this->_pipefd[1], requestContent.c_str(), requestContent.length());
+    close(this->_pipefd[1]);
+}
+
+void Cgi::execScript(void) {
     int pid = fork();
+
     if (pid == 0) {
-        close(this->_pipefd[1]);
         close(this->_responseFd[0]);
         dup2(this->_pipefd[0], STDIN_FILENO);
+        close(this->_pipefd[0]);
         dup2(this->_responseFd[1], STDOUT_FILENO);
-        close(this->_pipefd[0]);
         close(this->_responseFd[1]);
-        if (execve(this->_argv[0], this->getArgv(), this->getEnv()) == -1) {
-            std::cout << "Error: execve failed" << std::endl;
-            exit(1);
-        }
+        execve(this->_argv[0], this->getArgv(), this->getEnv());
+        std::cout << "Error: execve failed" << std::endl;
+        exit(1);
     } else {
-        // TODO: create a "setup" method that create the pipes and send the content to the cgi input
+        close(this->_responseFd[1]);
         close(this->_pipefd[0]);
-        write(this->_pipefd[1], this->_content.c_str(), this->_content.length());
-        close(this->_pipefd[1]);
+        waitpid(pid, NULL, 0);
     }
 }
 
@@ -77,13 +74,12 @@ void Cgi::setArgv(void) {
 
 void Cgi::setEnv(const std::string& requestHeader) {
     this->_header = requestHeader;
-    this->_env.push_back(getEnvFromHeader("Content-Type"));
-    this->_env.push_back(getEnvFromHeader("Content-Length"));
+    this->_env.push_back(getEnvFromHeader("CONTENT_TYPE=", "Content-Type"));
+    this->_env.push_back(getEnvFromHeader("CONTENT_LENGTH=", "Content-Length"));
     this->_env.push_back(strdup("AUTH_TYPE=Basic"));
     this->_env.push_back(strdup("DOCUMENT_ROOT=./"));
     this->_env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
-    // TODO: make getEnvFromHeader return only the value and set the HTTP_COOKIE manually
-    this->_env.push_back(strdup("HTTP_COOKIE="));
+    this->_env.push_back(getEnvFromHeader("HTTP_COOKIE=", "Cookie"));
     this->_env.push_back(strdup("PATH_INFO="));
     this->_env.push_back(strdup("PATH_TRANSLATED=.//"));
     this->_env.push_back(strdup("QUERY_STRING="));
@@ -101,6 +97,10 @@ void Cgi::setEnv(const std::string& requestHeader) {
 }
 
 // Getters
+std::string Cgi::getResponse(void) {
+    return this->_response;
+}
+
 char** Cgi::getEnv(void) {
     return this->_env.data();
 }
@@ -109,12 +109,10 @@ char** Cgi::getArgv(void) {
     return this->_argv.data();
 }
 
-char* Cgi::getEnvFromHeader(std::string name) {
-    size_t startPos = this->_header.find(name);
+char* Cgi::getEnvFromHeader(std::string name, std::string key) {
+    size_t startPos = this->_header.find(key);
     size_t separator = this->_header.find(":", startPos);
     size_t endPos = this->_header.find("\r\n", separator);
-    toUpperCase(name);
-    std::string env = name + "=" + this->_header.substr(separator + 2, endPos - separator - 2);
-    env.replace(env.find("-"), 1, "_");
+    std::string env = name + this->_header.substr(separator + 2, endPos - separator - 2);
     return strdup(env.c_str());
 }
