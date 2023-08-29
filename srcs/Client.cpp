@@ -53,6 +53,7 @@ void Client::handlePollin(int index) {
     if (bytesRead == (size_t)-1) {
         std::cerr << "webserv: read: " << strerror(errno) << std::endl;
         WebServ::removeIndex(index);
+        return;
     }
     if (bytesRead == 0) {
         WebServ::removeIndex(index);
