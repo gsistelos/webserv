@@ -2,31 +2,31 @@
 
 #include <poll.h>
 
-#include <map>
+#include <string>
+#include <vector>
 
-#include "Client.hpp"
-#include "Server.hpp"
+#include "Socket.hpp"
 
 /*
- * WebServ class is responsable for
- * connections with clients (including
- * I/O operations) and redirections
+ * WebServ class is the core
+ * of the program. It monitors
+ * all the pollfds and call
+ * servers and clients methods
  **/
 class WebServ {
-   private:
-    // Servers and clients pollfds
-    std::vector<struct pollfd> _pollFds;
-    std::map<int, Server*> _servers;
-    std::map<int, Client*> _clients;
-
    public:
     WebServ(void);
     ~WebServ();
 
+    static std::vector<struct pollfd> pollFds;
+    static std::vector<Socket*> sockets;
+    static bool quit;
+
+    static void removeIndex(int index);
+
     void configure(const std::string& configFile);
-    void createServer(std::string& fileContent);
-    void createClient(int serverFd);
-    void destroyClient(int index);
-    void handlePollin(int index);
     void start(void);
+
+   private:
+    void createServer(std::string& fileContent);
 };

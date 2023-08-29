@@ -4,29 +4,23 @@
 #include <vector>
 
 class Cgi {
+   public:
+    Cgi(const std::string& header, const std::string& content, std::string& response);
+    ~Cgi();
+
+    void execScript(void);
+    void createResponse(void);
+
    private:
     std::vector<char*> _argv;
     std::vector<char*> _env;
     int _pipefd[2];
     int _responseFd[2];
-    std::string _response;
-    std::string _header;
-    std::string _content;
+    const std::string& _header;
+    const std::string& _content;
+    std::string& _response;
 
-   public:
-    Cgi();
-    ~Cgi();
-
-    // Methods
-    void execScript(const std::string& requestContent);
-    void createResponse(std::string& clientResponse);
-
-    // Setters
-    void setEnv(const std::string& requestHeader);
+    void setEnv(void);
     void setArgv(void);
-
-    // Getters
-    char* getEnvFromHeader(std::string headerName);
-    char** getEnv(void);
-    char** getArgv(void);
+    char* getEnvFromHeader(std::string key);
 };

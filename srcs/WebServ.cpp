@@ -1,41 +1,43 @@
 #include "WebServ.hpp"
 
 #include <signal.h>
-#include <unistd.h>
 
-#include <cstdlib>
-#include <fstream>
+#include <cstring>
 #include <iostream>
-#include <sstream>
 
 #include "Error.hpp"
 #include "Parser.hpp"
+#include "Server.hpp"
 
 #define TIMEOUT 1 * 60 * 1000
 
-bool g_quit = false;
+std::vector<pollfd> WebServ::pollFds;
+std::vector<Socket*> WebServ::sockets;
+bool WebServ::quit = false;
 
 void sighandler(int signo) {
     if (signo == SIGINT)
-        g_quit = true;
+        WebServ::quit = true;
 }
 
 WebServ::WebServ(void) {
 }
 
 WebServ::~WebServ() {
-    for (size_t i = 0; i < this->_pollFds.size(); i++) {
-        if (this->_servers.count(this->_pollFds[i].fd))
-            delete this->_servers[this->_pollFds[i].fd];
-        else
-            delete this->_clients[this->_pollFds[i].fd];
+    for (size_t i = 0; i < WebServ::pollFds.size(); i++) {
+        WebServ::removeIndex(i);
     }
+}
+
+void WebServ::removeIndex(int index) {
+    WebServ::pollFds.erase(WebServ::pollFds.begin() + index);
+
+    delete WebServ::sockets[index];
+    WebServ::sockets.erase(WebServ::sockets.begin() + index);
 }
 
 void WebServ::configure(const std::string& configFile) {
     // Set signal to quit program properly
-
-    g_quit = false;
 
     struct sigaction act;
     act.sa_handler = &sighandler;
@@ -43,7 +45,7 @@ void WebServ::configure(const std::string& configFile) {
     act.sa_flags = SA_RESTART;
 
     if (sigaction(SIGINT, &act, NULL) == -1)
-        throw Error("Sigaction");
+        throw Error("sigaction");
 
     // Itarate words from config file
 
@@ -61,56 +63,6 @@ void WebServ::configure(const std::string& configFile) {
     }
 }
 
-void WebServ::createServer(std::string& fileContent) {
-    Server* newServer = new Server(fileContent);
-
-    pollfd pollFd;
-    pollFd.fd = newServer->getSocketFd();
-    pollFd.events = POLLIN | POLLOUT;
-
-    this->_pollFds.push_back(pollFd);
-    this->_servers.insert(std::pair<int, Server*>(pollFd.fd, newServer));
-}
-
-void WebServ::createClient(int serverFd) {
-    Client* newClient = new Client(this->_servers[serverFd]);
-
-    pollfd pollFd;
-    pollFd.fd = newClient->getSocketFd();
-    pollFd.events = POLLIN | POLLOUT;
-
-    this->_pollFds.push_back(pollFd);
-    this->_clients.insert(std::pair<int, Client*>(pollFd.fd, newClient));
-}
-
-void WebServ::destroyClient(int index) {
-    delete this->_clients[this->_pollFds[index].fd];
-    this->_clients.erase(this->_pollFds[index].fd);
-
-    this->_pollFds.erase(this->_pollFds.begin() + index);
-}
-
-void WebServ::handlePollin(int index) {
-    if (this->_servers.count(this->_pollFds[index].fd))
-        this->createClient(this->_pollFds[index].fd);
-    else {
-        std::string request = this->_clients[this->_pollFds[index].fd]->getServer()->readClientData(this->_pollFds[index].fd);
-        if (request.empty()) {
-            this->destroyClient(index);
-            return;
-        }
-
-        this->_clients[this->_pollFds[index].fd]->request(request);
-
-        if (this->_pollFds[index].revents & POLLOUT) {
-            if (write(this->_pollFds[index].fd,
-                      this->_clients[this->_pollFds[index].fd]->getResponse().c_str(),
-                      this->_clients[this->_pollFds[index].fd]->getResponse().length()) == -1)
-                throw Error("Write");
-        }
-    }
-}
-
 void WebServ::start(void) {
     while (1) {
         /*
@@ -120,19 +72,32 @@ void WebServ::start(void) {
          * Otherwise it's incoming data from a client
          **/
 
-        int ready = poll(this->_pollFds.data(), this->_pollFds.size(), TIMEOUT);
+        int ready = poll(WebServ::pollFds.data(), WebServ::pollFds.size(), TIMEOUT);
 
-        if (g_quit == true)
+        if (WebServ::quit == true)
             return;
 
-        if (ready == -1)
-            throw Error("Poll");
+        if (ready == -1) {
+            std::cerr << "webserv: poll: " << strerror(errno) << std::endl;
+            continue;
+        }
 
         // Iterate sockets to check if there's any incoming data
 
-        for (size_t i = 0; i < this->_pollFds.size(); i++) {
-            if (this->_pollFds[i].revents & POLLIN)
-                handlePollin(i);
+        for (size_t i = 0; i < WebServ::pollFds.size(); i++) {
+            if (WebServ::pollFds[i].revents & POLLIN)
+                WebServ::sockets[i]->handlePollin(i);
         }
     }
+}
+
+void WebServ::createServer(std::string& fileContent) {
+    Server* server = new Server(fileContent);
+    WebServ::sockets.push_back(server);
+
+    pollfd pollFd;
+    pollFd.fd = server->getFd();
+    pollFd.events = POLLIN | POLLOUT;
+    pollFd.revents = 0;
+    WebServ::pollFds.push_back(pollFd);
 }

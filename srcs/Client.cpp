@@ -13,43 +13,83 @@
 
 #include "Cgi.hpp"
 #include "Error.hpp"
+#include "Parser.hpp"
 #include "Server.hpp"
+#include "WebServ.hpp"
 
 Client::Client(Server* server) {
     this->_server = server;
 
-    this->_addrlen = sizeof(this->_address);
+    struct sockaddr_in address;
+    socklen_t addrlen = sizeof(address);
 
-    this->_socketFd = accept(server->getSocketFd(), (sockaddr*)&this->_address, &this->_addrlen);
-    if (this->_socketFd == -1)
-        throw Error("Accept");
+    this->_fd = accept(server->getFd(), (sockaddr*)&address, &addrlen);
+    if (this->_fd == -1)
+        throw Error("accept");
 
     // Get client address and port
     char clientIp[INET_ADDRSTRLEN];
 
-    if (inet_ntop(AF_INET, &this->_address.sin_addr, clientIp, INET_ADDRSTRLEN) == NULL)
+    if (inet_ntop(AF_INET, &address.sin_addr, clientIp, INET_ADDRSTRLEN) == NULL)
         throw Error("inet_ntop");
 
-    int clientPort = ntohs(this->_address.sin_port);
+    int clientPort = ntohs(address.sin_port);
 
-    std::cout << "Accepted client: " << clientIp << ":" << clientPort << " on socketFd " << this->_socketFd << std::endl;
+    std::cout << "Accepted client: " << clientIp << ":" << clientPort << " on fd " << this->_fd << std::endl;
 }
 
 Client::~Client() {
-    std::cout << "Client socketFd " << this->_socketFd << " closed" << std::endl;
-    close(this->_socketFd);
 }
 
-Server* Client::getServer(void) {
-    return this->_server;
-}
+void Client::handlePollin(int index) {
+    std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
 
-int Client::getSocketFd(void) {
-    return this->_socketFd;
-}
+    size_t bodySize = this->_server->getMaxBodySize();
 
-const std::string& Client::getResponse(void) {
-    return this->_response;
+    std::vector<char> buffer(bodySize + 1);
+
+    size_t bytesRead = read(this->_fd, buffer.data(), bodySize);
+
+    if (bytesRead == (size_t)-1) {
+        std::cerr << "webserv: read: " << strerror(errno) << std::endl;
+        WebServ::removeIndex(index);
+        return;
+    }
+    if (bytesRead == 0) {
+        WebServ::removeIndex(index);
+        return;
+    }
+
+    buffer[bytesRead] = '\0';
+
+    std::string request(buffer.data());
+
+    size_t headerEnd = request.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+        return;
+    }
+
+    this->_header = request.substr(0, headerEnd);
+    this->_content = request.substr(headerEnd + 4);
+
+    std::string method = Parser::extractWord(this->_header);
+
+    if (method == "GET")
+        getMethod();
+    else if (method == "POST")
+        postMethod();
+    else if (method == "DELETE")
+        deleteMethod();
+    else
+        _response = "HTTP/1.1 400 Method Not Supported\r\n\r\n";
+
+    if (WebServ::pollFds[index].revents & POLLOUT) {
+        if (write(this->_fd, this->_response.c_str(), this->_response.length()) == -1) {
+            std::cerr << "webserv: write: " << strerror(errno) << std::endl;
+            WebServ::removeIndex(index);
+        }
+    }
 }
 
 void Client::getMethod(void) {
@@ -86,52 +126,12 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    std::cout << std::endl
-              << "Start POST request" << std::endl
-              << std::endl;
-    ;
-    std::cout << _request << std::endl;
-    std::cout << "End POST request" << std::endl
-              << std::endl;
+    Cgi uploadCgi(this->_header, this->_content, this->_response);
 
-    Cgi uploadCgi;
-
-    uploadCgi.setEnv(_header);
-    uploadCgi.setArgv();
-    uploadCgi.execScript(_content);
-    uploadCgi.createResponse(this->_response);
+    uploadCgi.execScript();
+    uploadCgi.createResponse();
 }
 
 void Client::deleteMethod(void) {
     _response = "HTTP/1.1 400 Method In Development\r\n\r\n";
-}
-
-void Client::request(const std::string& request) {
-    size_t headerEnd;
-
-    _request = request;
-    headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        return;
-    }
-
-    this->_header = request.substr(0, headerEnd);
-    this->_content = request.substr(headerEnd);
-
-    std::string method;
-
-    std::istringstream headerStream(_header);
-    headerStream >> method;
-
-    _header.erase(0, method.length());
-
-    if (method == "GET")
-        getMethod();
-    else if (method == "POST")
-        postMethod();
-    else if (method == "DELETE")
-        deleteMethod();
-    else
-        _response = "HTTP/1.1 400 Method Not Supported\r\n\r\n";
 }
