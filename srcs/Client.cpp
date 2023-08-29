@@ -71,7 +71,7 @@ void Client::handlePollin(int index) {
     }
 
     this->_header = request.substr(0, headerEnd);
-    this->_content = request.substr(headerEnd + 4);
+    this->_body = request.substr(headerEnd + 4);
 
     std::string method = Parser::extractWord(this->_header);
 
@@ -126,10 +126,11 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi uploadCgi(this->_header, this->_content, this->_response);
+    Cgi uploadCgi(this->_header, this->_body, this->_response);
 
+    uploadCgi.sendCgiBody();
     uploadCgi.execScript();
-    uploadCgi.createResponse();
+    uploadCgi.buildResponse();
 }
 
 void Client::deleteMethod(void) {

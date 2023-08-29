@@ -20,7 +20,7 @@ class Client : public Socket {
    private:
     Server* _server;
     std::string _header;
-    std::string _content;
+    std::string _body;
     std::string _response;
 
     void getMethod(void);
