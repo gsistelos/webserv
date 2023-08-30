@@ -22,11 +22,9 @@ class WebServ {
     static std::vector<Socket*> sockets;
     static bool quit;
 
+    static void pushPollfd(int fd);
     static void removeIndex(int index);
 
     void configure(const std::string& configFile);
     void start(void);
-
-   private:
-    void createServer(std::string& fileContent);
 };

@@ -48,8 +48,11 @@ Server::Server(std::string& fileContent) : _config(fileContent) {
 
     // Set server address to listen for incoming connections
 
-    if (::listen(this->_fd, MAX_CLIENTS) == -1)
+    if (listen(this->_fd, MAX_CLIENTS) == -1)
         throw Error("listen");
+
+    WebServ::sockets.push_back(this);
+    WebServ::pushPollfd(this->_fd);
 
     std::cout << "Created server: " << this->_config.ip << ":" << this->_config.port << " on fd " << this->_fd << std::endl;
 }
@@ -68,19 +71,9 @@ size_t Server::getMaxBodySize(void) {
 void Server::handlePollin(int index) {
     (void)index;
 
-    Client* client;
-
     try {
-        client = new Client(this);
-        WebServ::sockets.push_back(client);
+        new Client(this);
     } catch (std::exception& e) {
         std::cerr << "webserv: " << e.what() << std::endl;
-        return;
     }
-
-    pollfd pollFd;
-    pollFd.fd = client->getFd();
-    pollFd.events = POLLIN | POLLOUT;
-    pollFd.revents = 0;
-    WebServ::pollFds.push_back(pollFd);
 }

@@ -35,6 +35,9 @@ Client::Client(Server* server) {
 
     int clientPort = ntohs(address.sin_port);
 
+    WebServ::sockets.push_back(this);
+    WebServ::pushPollfd(this->_fd);
+
     std::cout << "Accepted client: " << clientIp << ":" << clientPort << " on fd " << this->_fd << std::endl;
 }
 
