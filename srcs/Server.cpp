@@ -23,6 +23,11 @@ Server::Server(std::string& fileContent) : _config(fileContent) {
     if (this->_fd == -1)
         throw Error("socket");
 
+    int option = 1;
+
+    if (setsockopt(this->_fd, SOL_SOCKET, SO_REUSEADDR, (char*)&option, sizeof(option)) == -1)
+        throw Error("setsockopt");
+
     if (fcntl(this->_fd, F_SETFL, O_NONBLOCK))
         throw Error("fcntl");
 
