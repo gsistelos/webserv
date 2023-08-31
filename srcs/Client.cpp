@@ -73,7 +73,8 @@ void Client::handlePollin(int index) {
     this->_header = request.substr(0, headerEnd);
     this->_body = request.substr(headerEnd + 4);
 
-    std::string method = Parser::extractWord(this->_header);
+    std::string method;
+    Parser::extractWord(this->_header, method);
 
     if (method == "GET")
         getMethod();

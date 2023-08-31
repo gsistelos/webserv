@@ -6,12 +6,13 @@
 #include "Parser.hpp"
 
 Config::Config(std::string& fileContent) {
-    std::string word = Parser::extractWord(fileContent);
+    std::string word;
+    Parser::extractWord(fileContent, word);
     if (word != "{")
         throw Error("Expecterd '{'");
 
     while (1) {
-        word = Parser::extractWord(fileContent);
+        Parser::extractWord(fileContent, word);
         if (word.empty())
             throw Error("Unexpected end of file");
         if (word == "}")
@@ -34,7 +35,8 @@ Config::~Config() {
 }
 
 void Config::setListen(std::string& fileContent) {
-    std::string word = Parser::extractWord(fileContent);
+    std::string word;
+    Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
 
@@ -54,13 +56,14 @@ void Config::setListen(std::string& fileContent) {
     if (this->port < 0 || this->port > 65535)
         throw Error("Invalid server port");
 
-    word = Parser::extractWord(fileContent);
+    Parser::extractWord(fileContent, word);
     if (word != ";")
         throw Error("Expected ';'");
 }
 
 void Config::setRoot(std::string& fileContent) {
-    std::string word = Parser::extractWord(fileContent);
+    std::string word;
+    Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
 
@@ -69,13 +72,14 @@ void Config::setRoot(std::string& fileContent) {
 
     this->root = word;
 
-    word = Parser::extractWord(fileContent);
+    Parser::extractWord(fileContent, word);
     if (word != ";")
         throw Error("Expected ';'");
 }
 
 void Config::setMaxBodySize(std::string& fileContent) {
-    std::string word = Parser::extractWord(fileContent);
+    std::string word;
+    Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
 
@@ -91,7 +95,7 @@ void Config::setMaxBodySize(std::string& fileContent) {
 
     this->maxBodySize = std::atoi(word.c_str()) * 1024 * 1024;
 
-    word = Parser::extractWord(fileContent);
+    Parser::extractWord(fileContent, word);
     if (word != ";")
         throw Error("Expected ';'");
 }

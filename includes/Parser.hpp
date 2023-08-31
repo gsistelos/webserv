@@ -5,6 +5,6 @@
 
 class Parser {
    public:
-    static std::string readFile(const std::string& filename);
-    static std::string extractWord(std::string& str);
+    static void readFile(const std::string& filename, std::string& buf);
+    static void extractWord(std::string& str, std::string& buf);
 };
