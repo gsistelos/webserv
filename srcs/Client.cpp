@@ -103,12 +103,16 @@ void Client::getMethod(void) {
 
     if (headerPath == "/")
         filePath.append("/pages/home/index.html");
+    else if (headerPath == "/style.css")
+        filePath.append("/pages/home/style.css");
     else
         filePath.append(headerPath);
     // TODO: i would like to get the css file with an relative path, instead of an absolute path, inside the html file
     // as the initial route is "/", when the css is called we wil receive the path as "/style.css" in the request
     // we can check this "/style.css" path and redirect to "/pages/home/style.css"
     // or we dont need to check the "/style.css" path and redirect but we must call the css with an absolute path in the html file
+    // also, we can do a kinda of "route checker", and open the file that correspond to the route (e.g.: localhost:8080/index.html open pages/home/index.html)
+
     std::ifstream file(filePath.c_str());
     if (!file) {
         this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
