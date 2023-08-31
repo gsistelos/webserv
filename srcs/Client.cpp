@@ -63,7 +63,8 @@ void Client::handlePollin(int index) {
     buffer[bytesRead] = '\0';
 
     std::string request(buffer.data());
-
+    std::cout << std::endl;
+    std::cout << "REQUEST: " << request << std::endl;
     size_t headerEnd = request.find("\r\n\r\n");
     if (headerEnd == std::string::npos) {
         this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
@@ -93,36 +94,43 @@ void Client::handlePollin(int index) {
 }
 
 void Client::getMethod(void) {
-    std::string page;
+    std::string filePath = ".";
+    std::string headerPath;
 
     std::istringstream headerStream(_header);
-    headerStream >> page;
+    headerStream >> headerPath;
+    std::string extension = headerPath.substr(headerPath.find_last_of(".") + 1);
 
-    if (page == "/")
-        page = "./pages/home/index.html";
+    if (headerPath == "/")
+        filePath.append("/pages/home/index.html");
     else
-        page = "./pages/upload/index.html";
-
-    std::ifstream file(page.c_str());
+        filePath.append(headerPath);
+    // TODO: i would like to get the css file with an relative path, instead of an absolute path, inside the html file
+    // as the initial route is "/", when the css is called we wil receive the path as "/style.css" in the request
+    // we can check this "/style.css" path and redirect to "/pages/home/style.css"
+    // or we dont need to check the "/style.css" path and redirect but we must call the css with an absolute path in the html file
+    std::ifstream file(filePath.c_str());
     if (!file) {
-        _response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
         return;
     }
-
-    std::ostringstream contentStream;
-    contentStream << file.rdbuf();
+    std::stringstream buffer;
+    buffer << file.rdbuf();
     file.close();
 
-    std::string fileContent = contentStream.str();
+    std::string fileContent = buffer.str();
+    std::stringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    if (extension == "css")
+        response << "Content-Type: text/css\r\n";
+    else
+        response << "Content-Type: text/html\r\n";
+    response << "Content-Type: text/html\r\n";
+    response << "Content-Length: " << fileContent.length() << "\r\n";
+    response << "\r\n";
+    response << fileContent;
 
-    std::ostringstream responseStream;
-    responseStream << "HTTP/1.1 200 OK\r\n";
-    responseStream << "Content-Type: text/html\r\n";
-    responseStream << "Content-Length: " << fileContent.length() << "\r\n";
-    responseStream << "\r\n";
-    responseStream << fileContent;
-
-    _response = responseStream.str();
+    this->_response = response.str();
 }
 
 void Client::postMethod(void) {
