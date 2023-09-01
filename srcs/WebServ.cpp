@@ -9,8 +9,6 @@
 #include "Parser.hpp"
 #include "Server.hpp"
 
-#define TIMEOUT 1 * 60 * 1000
-
 std::vector<pollfd> WebServ::pollFds;
 std::vector<Socket*> WebServ::sockets;
 bool WebServ::quit = false;
@@ -50,7 +48,7 @@ void WebServ::configure(const std::string& configFile) {
     struct sigaction act;
     act.sa_handler = &sighandler;
     sigfillset(&act.sa_mask);
-    act.sa_flags = SA_RESTART;
+    act.sa_flags = 0;
 
     if (sigaction(SIGINT, &act, NULL) == -1)
         throw Error("sigaction");
@@ -75,7 +73,7 @@ void WebServ::configure(const std::string& configFile) {
 
 void WebServ::start(void) {
     while (1) {
-        int ready = poll(WebServ::pollFds.data(), WebServ::pollFds.size(), TIMEOUT);
+        int ready = poll(WebServ::pollFds.data(), WebServ::pollFds.size(), -1);
 
         if (WebServ::quit == true)
             return;

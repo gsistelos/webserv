@@ -36,6 +36,8 @@ void Parser::extractWord(std::string& str, std::string& buf) {
             break;
     }
 
+    // Extract word
+
     if (str[0] == '{' || str[0] == '}' || str[0] == ';') {
         buf = str[0];
         str.erase(0, 1);

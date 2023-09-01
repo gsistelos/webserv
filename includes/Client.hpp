@@ -9,7 +9,7 @@ class Server;
 /*
  * Client class handles
  * requests and responses
- */
+ **/
 class Client : public Socket {
    public:
     Client(Server* server);
