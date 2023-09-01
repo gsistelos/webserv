@@ -63,8 +63,6 @@ void Client::handlePollin(int index) {
     buffer[bytesRead] = '\0';
 
     std::string request(buffer.data());
-    std::cout << std::endl;
-    std::cout << "REQUEST: " << request << std::endl;
     size_t headerEnd = request.find("\r\n\r\n");
     if (headerEnd == std::string::npos) {
         this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
