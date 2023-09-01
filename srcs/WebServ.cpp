@@ -29,6 +29,14 @@ WebServ::~WebServ() {
         WebServ::removeIndex(i);
 }
 
+void WebServ::pushPollfd(int fd) {
+    pollfd pollFd;
+    pollFd.fd = fd;
+    pollFd.events = POLLIN | POLLOUT;
+    pollFd.revents = 0;
+    WebServ::pollFds.push_back(pollFd);
+}
+
 void WebServ::removeIndex(int index) {
     WebServ::pollFds.erase(WebServ::pollFds.begin() + index);
 
@@ -59,7 +67,7 @@ void WebServ::configure(const std::string& configFile) {
             break;
 
         if (word == "server")
-            this->createServer(fileContent);
+            new Server(fileContent);
         else
             throw Error("Invalid content \"" + word + "\"");
     }
@@ -85,15 +93,4 @@ void WebServ::start(void) {
                 WebServ::sockets[i]->handlePollin(i);
         }
     }
-}
-
-void WebServ::createServer(std::string& fileContent) {
-    Server* server = new Server(fileContent);
-    WebServ::sockets.push_back(server);
-
-    pollfd pollFd;
-    pollFd.fd = server->getFd();
-    pollFd.events = POLLIN | POLLOUT;
-    pollFd.revents = 0;
-    WebServ::pollFds.push_back(pollFd);
 }
