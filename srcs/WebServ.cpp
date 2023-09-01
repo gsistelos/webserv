@@ -24,9 +24,9 @@ WebServ::WebServ(void) {
 }
 
 WebServ::~WebServ() {
-    for (size_t i = 0; i < WebServ::pollFds.size(); i++) {
+    size_t i = WebServ::pollFds.size();
+    while (i--)
         WebServ::removeIndex(i);
-    }
 }
 
 void WebServ::removeIndex(int index) {
@@ -49,10 +49,12 @@ void WebServ::configure(const std::string& configFile) {
 
     // Itarate words from config file
 
-    std::string fileContent = Parser::readFile(configFile);
+    std::string fileContent;
+    Parser::readFile(configFile, fileContent);
 
     while (1) {
-        std::string word = Parser::extractWord(fileContent);
+        std::string word;
+        Parser::extractWord(fileContent, word);
         if (word.empty())
             break;
 
@@ -65,13 +67,6 @@ void WebServ::configure(const std::string& configFile) {
 
 void WebServ::start(void) {
     while (1) {
-        /*
-         * poll() will wait for a fd to be ready for I/O operations
-         *
-         * If it's the SERVER_FD, it's a incoming conenction
-         * Otherwise it's incoming data from a client
-         **/
-
         int ready = poll(WebServ::pollFds.data(), WebServ::pollFds.size(), TIMEOUT);
 
         if (WebServ::quit == true)
@@ -84,7 +79,8 @@ void WebServ::start(void) {
 
         // Iterate sockets to check if there's any incoming data
 
-        for (size_t i = 0; i < WebServ::pollFds.size(); i++) {
+        size_t i = WebServ::pollFds.size();
+        while (i--) {
             if (WebServ::pollFds[i].revents & POLLIN)
                 WebServ::sockets[i]->handlePollin(i);
         }
