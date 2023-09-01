@@ -129,7 +129,6 @@ void Client::getMethod(void) {
         response << "Content-Type: text/css\r\n";
     else
         response << "Content-Type: text/html\r\n";
-    response << "Content-Type: text/html\r\n";
     response << "Content-Length: " << fileContent.length() << "\r\n";
     response << "\r\n";
     response << fileContent;
