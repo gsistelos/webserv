@@ -41,7 +41,6 @@ void Cgi::buildResponse(void) {
         this->_response.append("Content-Length: " + strBytesRead.str() + "\r\n");
         this->_response.append("\r\n");
         this->_response.append(buffer);
-        std::cout << "RESPONSE: " << this->_response << std::endl;
     }
 }
 
