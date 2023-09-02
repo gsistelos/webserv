@@ -18,7 +18,7 @@ class WebServ {
     WebServ(void);
     ~WebServ();
 
-    static std::vector<struct pollfd> pollFds;
+    static std::vector<pollfd> pollFds;
     static std::vector<Socket*> sockets;
     static bool quit;
 

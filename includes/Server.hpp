@@ -6,10 +6,9 @@
 #include "Socket.hpp"
 
 /*
- * Server class accepts
- * incoming connections
- * and read incoming data
- */
+ * Server class store configurations
+ * and accepts incoming connections
+ **/
 class Server : public Socket {
    public:
     Server(std::string& fileContent);

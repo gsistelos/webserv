@@ -28,7 +28,7 @@ Server::Server(std::string& fileContent) : _config(fileContent) {
     if (setsockopt(this->_fd, SOL_SOCKET, SO_REUSEADDR, (char*)&option, sizeof(option)) == -1)
         throw Error("setsockopt");
 
-    if (fcntl(this->_fd, F_SETFL, O_NONBLOCK))
+    if (fcntl(this->_fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC))
         throw Error("fcntl");
 
     struct sockaddr_in address;
