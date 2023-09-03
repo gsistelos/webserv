@@ -3,6 +3,8 @@
 import cgi
 import os
 
+os.environ["REQUEST_METHOD"] = "POST"
+
 form = cgi.FieldStorage()
 
 # Get filename here
