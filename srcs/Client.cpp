@@ -91,8 +91,8 @@ void Client::handlePollin(int index) {
 void Client::getMethod(void) {
     std::string path;
     Parser::extractWord(this->_request, path);
-
     std::cout << "path: " << path << std::endl;
+
     if (path == "/redirect") {
         this->_response = "HTTP/1.1 301 Moved Permanently\r\n";
         this->_response += "Location: http://www.google.com/\r\n\r\n";
