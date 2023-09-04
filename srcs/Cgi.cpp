@@ -80,10 +80,6 @@ void Cgi::buildResponse(void) {
         this->_response.append("<p> ERROR: CGI Response is empty. </p>");
         this->_response.append("<html>");
     } else {
-        this->_response.append("HTTP/1.1 200 OK\r\n");
-        this->_response.append("Content-Type: text/html\r\n");
-        this->_response.append("Content-Length: " + strBytesRead.str() + "\r\n");
-        this->_response.append("\r\n");
         this->_response.append(buffer);
     }
 }

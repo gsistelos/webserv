@@ -95,9 +95,8 @@ void Client::getMethod(void) {
     std::string uri;
     Parser::extractWord(this->_request, uri);
 
-    uri = this->_server->getRoot() + uri;
-
     getCgi.pushEnv("REQUEST_URI=" + uri);
+    getCgi.pushEnv("SERVER_ROOT=" + this->_server->getRoot());
 
     getCgi.execScript();
     getCgi.buildResponse();

@@ -25,7 +25,13 @@ if fileitem.filename:
 else:
     message = 'Uploading Failed'
 
+response = "<html>\n"
+response += "<p>" + message + "</p>\n"
+response += "</html>\n"
+
 # Response to client
-print("<html>")
-print("<p>", message, "</p>")
-print("<html>")
+print("HTTP/1.1 200 OK")
+print("Content-Type: text/html")
+print("Content-Length: ", len(message))
+print()
+print(response)
