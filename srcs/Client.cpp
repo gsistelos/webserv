@@ -92,7 +92,10 @@ void Client::getMethod(void) {
     std::string path;
     Parser::extractWord(this->_request, path);
 
-    std::cout << "path: " << path << std::endl;
+    if (path == "/redirect") {
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
+        return;
+    }
 
     if (path == "/redirect") {
         this->_response = "HTTP/1.1 301 Moved Permanently\r\n";
