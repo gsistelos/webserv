@@ -92,14 +92,16 @@ void Client::getMethod(void) {
     std::string path;
     Parser::extractWord(this->_request, path);
 
-    std::cout << "path: " << path << std::endl;
+    if (path == "/redirect") {
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
+        return;
+    }
 
     if (path[path.length() - 1] == '/')
         path += "index.html";
 
     std::string fullPath = this->_server->getRoot() + path;
 
-    std::cout << "full path: " << fullPath << std::endl;
     std::ifstream file(fullPath.c_str());
 
     if (!file.is_open()) {
@@ -117,8 +119,6 @@ void Client::getMethod(void) {
     response << fileContent.str();
 
     this->_response = response.str();
-
-    std::cout << "response: " << this->_response << std::endl;
 }
 
 void Client::postMethod(void) {
