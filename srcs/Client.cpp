@@ -92,11 +92,7 @@ void Client::getMethod(void) {
     std::string path;
     Parser::extractWord(this->_request, path);
 
-    if (path == "/redirect") {
-        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
-        return;
-    }
-
+    std::cout << "path: " << path << std::endl;
     if (path == "/redirect") {
         this->_response = "HTTP/1.1 301 Moved Permanently\r\n";
         this->_response += "Location: http://www.google.com/\r\n\r\n";
@@ -107,10 +103,9 @@ void Client::getMethod(void) {
         path += "index.html";
 
     std::string filePath = this->_server->getRoot() + path;
-
     std::cout << "file path: " << filePath << std::endl;
-    std::ifstream file(filePath.c_str());
 
+    std::ifstream file(filePath.c_str());
     if (!file.is_open()) {
         this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
         return;
