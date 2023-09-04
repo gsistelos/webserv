@@ -94,13 +94,19 @@ void Client::getMethod(void) {
 
     std::cout << "path: " << path << std::endl;
 
+    if (path == "/redirect") {
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\n";
+        this->_response += "Location: http://www.google.com/\r\n\r\n";
+        return;
+    }
+
     if (path[path.length() - 1] == '/')
         path += "index.html";
 
-    std::string fullPath = this->_server->getRoot() + path;
+    std::string filePath = this->_server->getRoot() + path;
 
-    std::cout << "full path: " << fullPath << std::endl;
-    std::ifstream file(fullPath.c_str());
+    std::cout << "file path: " << filePath << std::endl;
+    std::ifstream file(filePath.c_str());
 
     if (!file.is_open()) {
         this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
@@ -117,8 +123,6 @@ void Client::getMethod(void) {
     response << fileContent.str();
 
     this->_response = response.str();
-
-    std::cout << "response: " << this->_response << std::endl;
 }
 
 void Client::postMethod(void) {
