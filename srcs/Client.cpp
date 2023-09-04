@@ -89,17 +89,36 @@ void Client::handlePollin(int index) {
 }
 
 void Client::getMethod(void) {
-    Cgi getCgi(this->_request, this->_response);
-    getCgi.pushArgv("cgi-bin/get.py");
+    std::string path;
+    Parser::extractWord(this->_request, path);
 
-    std::string uri;
-    Parser::extractWord(this->_request, uri);
+    std::cout << "path: " << path << std::endl;
 
-    getCgi.pushEnv("REQUEST_URI=" + uri);
-    getCgi.pushEnv("SERVER_ROOT=" + this->_server->getRoot());
+    if (path[path.length() - 1] == '/')
+        path += "index.html";
 
-    getCgi.execScript();
-    getCgi.buildResponse();
+    std::string fullPath = this->_server->getRoot() + path;
+
+    std::cout << "full path: " << fullPath << std::endl;
+    std::ifstream file(fullPath.c_str());
+
+    if (!file.is_open()) {
+        this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
+        return;
+    }
+
+    std::stringstream fileContent;
+    fileContent << file.rdbuf();
+
+    std::stringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    response << "Content-Length: " << fileContent.str().length() << "\r\n";
+    response << "\r\n";
+    response << fileContent.str();
+
+    this->_response = response.str();
+
+    std::cout << "response: " << this->_response << std::endl;
 }
 
 void Client::postMethod(void) {
