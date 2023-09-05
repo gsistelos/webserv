@@ -19,10 +19,12 @@ class Client : public Socket {
 
    private:
     Server* _server;
-    std::string _request;
+    std::string _header;
+    std::string _body;
     std::string _response;
 
     void getMethod(void);
     void postMethod(void);
     void deleteMethod(void);
+    void invalidMethod(void);
 };

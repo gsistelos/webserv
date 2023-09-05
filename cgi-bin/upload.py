@@ -1,37 +1,31 @@
 #!/usr/bin/python3
 
-import cgi
-import os
-
-os.environ["REQUEST_METHOD"] = "POST"
+import os, cgi, sys
 
 form = cgi.FieldStorage()
 
-# Get filename here
-fileitem = form['filename']
+form_data = form["filename"]
 
-# Test if the file was uploaded
-if fileitem.filename:
-    # Check if directory exists
-    if not os.path.exists(os.getcwd() + '/cgi-bin/tmp'):
-        os.makedirs(os.getcwd() + '/cgi-bin/tmp')
+if form_data.filename:
+    if not os.path.exists("uploads"):
+        os.mkdir("uploads")
 
-    # Create and write to file
-    open(os.getcwd() + '/cgi-bin/tmp/' +
-         os.path.basename(fileitem.filename), 'wb').write(fileitem.file.read())
-    message = 'The file "' + \
-        os.path.basename(fileitem.filename) + \
-        '" was uploaded to ' + os.getcwd() + '/cgi-bin/tmp'
+    open("uploads/" + form_data.filename, "wb").write(form_data.file.read())
+
+    response = "<html>"
+    response += "<p>File " + form_data.filename + " was uploaded to " + "uploads/" + "</p>"
+    response += "</html>"
+
+    print("HTTP/1.1 200 OK")
+    print("Content-Length: " + str(len(response)))
+    print()
+    print(response)
 else:
-    message = 'Uploading Failed'
+    response = "<html>"
+    response += "<p>No file was uploaded</p>"
+    response += "</html>"
 
-response = "<html>\n"
-response += "<p>" + message + "</p>\n"
-response += "</html>\n"
-
-# Response to client
-print("HTTP/1.1 200 OK")
-print("Content-Type: text/html")
-print("Content-Length: ", len(message))
-print()
-print(response)
+    print("HTTP/1.1 400 Bad Request")
+    print("Content-Length: " + str(len(response)))
+    print()
+    print(response)
