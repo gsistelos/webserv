@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import os, cgi, sys
+import os, cgi
 
 form = cgi.FieldStorage()
 

@@ -73,7 +73,7 @@ void Server::handlePollin(int index) {
 
     try {
         new Client(this);
-    } catch (std::exception& e) {
+    } catch (const std::exception& e) {
         std::cerr << "webserv: " << e.what() << std::endl;
     }
 }

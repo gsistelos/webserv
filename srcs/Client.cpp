@@ -48,27 +48,22 @@ void Client::handlePollin(int index) {
 
     char buffer[bodySize];
 
-    ssize_t bytesRead = read(this->_fd, buffer, bodySize);
-    if (bytesRead <= 0) {
+    ssize_t bytes = read(this->_fd, buffer, bodySize);
+    if (bytes == -1)
+        throw Error("read");
+    if (bytes == 0) {
         WebServ::removeIndex(index);
-        if (bytesRead == -1)
-            std::cerr << "webserv: read: " << strerror(errno) << std::endl;
         return;
     }
 
-    std::string request(buffer, bytesRead);
+    this->_request.assign(buffer, bytes);
 
-    size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        this->_header = request;
-        this->_body = "";
-    } else {
-        this->_header = request.substr(0, headerEnd);
-        this->_body = request.substr(headerEnd + 4);
-    }
+    this->_headerEnd = this->_request.find("\r\n\r\n");
+    if (this->_headerEnd == std::string::npos)
+        this->_headerEnd = this->_request.length();
 
     std::string method;
-    Parser::extractWord(this->_header, method);
+    Parser::getWord(this->_request, method);
 
     try {
         if (method == "GET")
@@ -78,55 +73,46 @@ void Client::handlePollin(int index) {
         else if (method == "DELETE")
             deleteMethod();
         else
-            invalidMethod();
-    } catch (std::exception& e) {
+            this->getPage("HTTP/1.1 501 Not Implemented", this->_server->getRoot() + "default_pages/501.html");
+    } catch (const std::exception& e) {
         std::cerr << "webserv: " << e.what() << std::endl;
-        WebServ::removeIndex(index);
-        return;
+        this->internalServerError();
     }
 
     if (WebServ::pollFds[index].revents & POLLOUT) {
-        if (write(this->_fd, this->_response.c_str(), this->_response.length()) == -1) {
-            std::cerr << "webserv: write: " << strerror(errno) << std::endl;
+        bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
+        if (bytes == -1)
+            throw Error("write");
+        if (bytes == 0) {
             WebServ::removeIndex(index);
+            return;
         }
     }
 }
 
 void Client::getMethod(void) {
     std::string uri;
-    Parser::extractWord(this->_header, uri);
+    Parser::getWord(this->_request, uri, 4);
+
+    if (this->isRedirect(uri))
+        return;
 
     uri = this->_server->getRoot() + uri;
     if (uri[uri.length() - 1] == '/')
         uri += "index.html";
 
-    std::stringstream responseStream;
-
-    if (uri == "/redirect") {
-        responseStream << "HTTP/1.1 301 Moved Permanently\r\n"
-                       << "Location: http://www.google.com/\r\n"
-                       << "\r\n";
-    } else {
-        std::string buffer;
-        Parser::readFile(uri, buffer);
-
-        responseStream << "HTTP/1.1 200 OK\r\n"
-                       << "Content-Length: " << buffer.length() << "\r\n"
-                       << "Content-Type: text/html\r\n"
-                       << "\r\n"
-                       << buffer;
-    }
-
-    this->_response = responseStream.str();
+    if (access(uri.c_str(), F_OK))
+        this->getPage("HTTP/1.1 404 Not Found", "default_pages/404.html");
+    else
+        this->getPage("HTTP/1.1 200 OK", uri);
 }
 
 void Client::postMethod(void) {
-    Cgi cgi(this->_header, this->_body, this->_response);
+    Cgi cgi(this->_request, this->_headerEnd, this->_response);
     cgi.setCgiPath("cgi-bin/upload.py");
 
     cgi.pushEnv("REQUEST_METHOD=POST");
-    cgi.pushEnvFromHeader("Content-Type", "CONTENT_TYPE");
+    cgi.pushEnvFromHeader("Content-Type: ", "CONTENT_TYPE=");
 
     cgi.execScript();
 }
@@ -135,6 +121,47 @@ void Client::deleteMethod(void) {
     _response = "HTTP/1.1 400 Method In Development\r\n\r\n";
 }
 
-void Client::invalidMethod(void) {
-    _response = "HTTP/1.1 400 Method not supported\r\n\r\n";
+void Client::getPage(const std::string& http, const std::string& uri) {
+    try {
+        std::string buffer;
+        Parser::readFile(uri, buffer);
+
+        std::stringstream responseStream;
+        responseStream << http << "\r\n"
+                       << "Content-Length: " << buffer.length() << "\r\n"
+                       << "\r\n"
+                       << buffer;
+
+        this->_response = responseStream.str();
+    } catch (const std::exception& e) {
+        std::cerr << "webserv: " << e.what() << std::endl;
+        this->internalServerError();
+    }
+}
+
+int Client::isRedirect(const std::string& uri) {
+    if (uri == "/redirect")
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
+    else
+        return 0;
+    return 1;
+}
+
+void Client::internalServerError(void) {
+    std::stringstream buffer;
+    buffer << "<html>\r\n"
+           << "<head><title>500 Internal Server Error</title></head>\r\n"
+           << "<body>\r\n"
+           << "<h1>500 Internal Server Error</h1>\r\n"
+           << "<p>The server encountered an unexpected condition that prevented it from fulfilling the request</p>\r\n"
+           << "<a href=\"/\">Back to Home</a>\r\n"
+           << "</body>\r\n"
+           << "</html>\r\n";
+
+    std::stringstream responseStream;
+    responseStream << "HTTP/1.1 500 Internal Server Error\r\n"
+                   << "Content-Length: " << buffer.str().length() << "\r\n"
+                   << "\r\n"
+                   << buffer.str();
+    this->_response = responseStream.str();
 }

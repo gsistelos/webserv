@@ -8,49 +8,73 @@ void Parser::readFile(const std::string& filename, std::string& buf) {
         throw Error(filename);
 
     buf = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
 }
 
-void Parser::extractWord(std::string& str, std::string& buf) {
-    buf.clear();
-
-    // Skip whitespaces and comments
-
+void Parser::getWord(const std::string& str, std::string& buf, size_t start) {
     while (1) {
-        size_t start = str.find_first_not_of(" \t\n");
+        start = str.find_first_not_of(" \t\n", start);
         if (start == std::string::npos) {
-            str.clear();
+            buf.clear();
             return;
         }
 
-        str.erase(0, start);
-
-        if (str[0] == '#') {
-            size_t end = str.find_first_of("\n");
-            if (end == std::string::npos) {
-                str.clear();
+        if (str[start] == '#') {
+            start = str.find_first_of("\n", start);
+            if (start == std::string::npos) {
+                buf.clear();
                 return;
             }
-            str.erase(0, end);
         } else
             break;
     }
 
-    // Extract word
-
-    if (str[0] == '{' || str[0] == '}' || str[0] == ';') {
-        buf = str[0];
-        str.erase(0, 1);
+    if (str[start] == '{' || str[start] == '}' || str[start] == ';') {
+        buf = str[start];
         return;
     }
 
-    size_t end = str.find_first_of(" \t\n{};");
+    size_t end = str.find_first_of(" \t\n{};", start);
     if (end == std::string::npos) {
-        buf = str;
+        buf = str.substr(start);
+        return;
+    }
+
+    buf = str.substr(start, end - start);
+}
+
+void Parser::extractWord(std::string& str, std::string& buf, size_t start) {
+    while (1) {
+        start = str.find_first_not_of(" \t\n", start);
+        if (start == std::string::npos) {
+            buf.clear();
+            str.clear();
+            return;
+        }
+
+        if (str[start] == '#') {
+            start = str.find_first_of("\n", start);
+            if (start == std::string::npos) {
+                buf.clear();
+                str.clear();
+                return;
+            }
+        } else
+            break;
+    }
+
+    if (str[start] == '{' || str[start] == '}' || str[start] == ';') {
+        buf = str[start];
+        str.erase(0, start + 1);
+        return;
+    }
+
+    size_t end = str.find_first_of(" \t\n{};", start);
+    if (end == std::string::npos) {
+        buf = str.substr(start);
         str.clear();
         return;
     }
 
-    buf = str.substr(0, end);
+    buf = str.substr(start, end - start);
     str.erase(0, end);
 }

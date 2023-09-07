@@ -4,12 +4,13 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include "Error.hpp"
 
 #define BUFFER_SIZE 1024 * 1024  // 1 MB
 
-Cgi::Cgi(const std::string& header, const std::string& body, std::string& response) : _header(header), _body(body), _response(response) {
+Cgi::Cgi(const std::string& request, size_t headerEnd, std::string& response) : _request(request), _headerEnd(headerEnd), _response(response) {
     this->_argv.push_back(strdup("/usr/bin/python3"));
     this->_argv.push_back(NULL);
 }
@@ -29,20 +30,18 @@ void Cgi::pushEnv(const std::string& env) {
     this->_env.push_back(strdup(env.c_str()));
 }
 
-void Cgi::pushEnvFromHeader(const std::string& headerName, const std::string& envKey) {
-    size_t startPos = this->_header.find(headerName);
-    if (startPos == std::string::npos)
-        return;
+void Cgi::pushEnvFromHeader(const std::string& find, const std::string& set) {
+    size_t startPos = this->_request.find(find.c_str());
+    if (startPos > this->_headerEnd)
+        throw Error("header content not found");
 
-    startPos = this->_header.find(": ", startPos);
-    if (startPos == std::string::npos)
-        return;
+    startPos += find.length();
 
-    size_t endPos = this->_header.find("\r\n", startPos);
+    size_t endPos = this->_request.find("\r\n", startPos);
     if (endPos == std::string::npos)
-        return;
+        throw Error("header content not found");
 
-    this->pushEnv(envKey + "=" + this->_header.substr(startPos + 2, endPos - startPos - 2));
+    this->pushEnv(set + this->_request.substr(startPos, endPos - startPos));
 }
 
 void Cgi::execScript(void) {
@@ -54,7 +53,7 @@ void Cgi::execScript(void) {
 
     // Send request to CGI
 
-    ssize_t bytes = write(this->_requestFd[1], _body.c_str(), _body.length());
+    ssize_t bytes = write(this->_requestFd[1], _request.c_str(), _request.length());
     close(this->_requestFd[1]);
     if (bytes == -1) {
         close(this->_requestFd[0]);
