@@ -49,9 +49,9 @@ void Client::handlePollin(int index) {
 
     size_t bodySize = this->_server->getMaxBodySize();
 
-    std::vector<char> buffer(bodySize + 1);
+    char* buffer = new char[bodySize + 1];
 
-    size_t bytesRead = read(this->_fd, buffer.data(), bodySize);
+    size_t bytesRead = read(this->_fd, buffer, bodySize);
 
     if (bytesRead == (size_t)-1) {
         std::cerr << "webserv: read: " << strerror(errno) << std::endl;
@@ -65,18 +65,11 @@ void Client::handlePollin(int index) {
 
     buffer[bytesRead] = '\0';
 
-    std::string request(buffer.data());
-    size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        this->_response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        return;
-    }
-
-    this->_header = request.substr(0, headerEnd);
-    this->_body = request.substr(headerEnd + 4);
+    this->_request = buffer;
+    delete[] buffer;
 
     std::string method;
-    Parser::extractWord(this->_header, method);
+    Parser::extractWord(this->_request, method);
 
     if (method == "GET")
         getMethod();
@@ -96,52 +89,44 @@ void Client::handlePollin(int index) {
 }
 
 void Client::getMethod(void) {
-    std::string filePath = ".";
-    std::string headerPath;
+    std::string path;
+    Parser::extractWord(this->_request, path);
+    std::cout << "path: " << path << std::endl;
 
-    std::istringstream headerStream(_header);
-    headerStream >> headerPath;
-    std::string extension = headerPath.substr(headerPath.find_last_of(".") + 1);
+    if (path == "/redirect") {
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\n";
+        this->_response += "Location: http://www.google.com/\r\n\r\n";
+        return;
+    }
 
-    if (headerPath == "/")
-        filePath.append("/pages/home/index.html");
-    else if (headerPath == "/style.css")
-        filePath.append("/pages/home/style.css");
-    else
-        filePath.append(headerPath);
-    // TODO: i would like to get the css file with an relative path, instead of an absolute path, inside the html file
-    // as the initial route is "/", when the css is called we wil receive the path as "/style.css" in the request
-    // we can check this "/style.css" path and redirect to "/pages/home/style.css"
-    // or we dont need to check the "/style.css" path and redirect but we must call the css with an absolute path in the html file
-    // also, we can do a kinda of "route checker", and open the file that correspond to the route (e.g.: localhost:8080/index.html open pages/home/index.html)
+    if (path[path.length() - 1] == '/')
+        path += "index.html";
+
+    std::string filePath = this->_server->getRoot() + path;
+    std::cout << "file path: " << filePath << std::endl;
 
     std::ifstream file(filePath.c_str());
-    if (!file) {
+    if (!file.is_open()) {
         this->_response = "HTTP/1.1 404 Not Found\r\n\r\n";
         return;
     }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    file.close();
 
-    std::string fileContent = buffer.str();
+    std::stringstream fileContent;
+    fileContent << file.rdbuf();
+
     std::stringstream response;
     response << "HTTP/1.1 200 OK\r\n";
-    if (extension == "css")
-        response << "Content-Type: text/css\r\n";
-    else
-        response << "Content-Type: text/html\r\n";
-    response << "Content-Length: " << fileContent.length() << "\r\n";
+    response << "Content-Length: " << fileContent.str().length() << "\r\n";
     response << "\r\n";
-    response << fileContent;
+    response << fileContent.str();
 
     this->_response = response.str();
 }
 
 void Client::postMethod(void) {
-    Cgi uploadCgi(this->_header, this->_body, this->_response);
+    Cgi uploadCgi(this->_request, this->_response);
+    uploadCgi.pushArgv("cgi-bin/upload.py");
 
-    uploadCgi.sendCgiBody();
     uploadCgi.execScript();
     uploadCgi.buildResponse();
 }

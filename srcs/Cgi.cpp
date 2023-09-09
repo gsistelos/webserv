@@ -8,9 +8,18 @@
 #include <cstring>
 #include <sstream>
 
-Cgi::Cgi(const std::string& header, const std::string& content, std::string& _response) : _header(header), _body(content), _response(_response) {
-    this->setEnv();
-    this->setArgv();
+#define BUFFER_SIZE 30000
+
+Cgi::Cgi(const std::string& request, std::string& response) : _request(request), _response(response) {
+    this->_argv.push_back(strdup("/usr/bin/python3"));
+
+    if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
+        std::cout << "webserv: pipe: " << strerror(errno) << std::endl;
+        return;
+    }
+
+    write(this->_pipefd[1], this->_request.c_str(), this->_request.length());
+    close(this->_pipefd[1]);
 }
 
 Cgi::~Cgi(void) {
@@ -20,40 +29,18 @@ Cgi::~Cgi(void) {
         free(*it);
 }
 
-// Methods
-void Cgi::buildResponse(void) {
-    char buffer[30000];
-    size_t bytesRead = read(this->_responseFd[0], buffer, 30000);
-    close(this->_responseFd[0]);
-    std::ostringstream strBytesRead;
-    strBytesRead << bytesRead;
-    this->_response.clear();
-    if (bytesRead <= 0) {
-        this->_response.append("HTTP/1.1 500 Internal Server Error\r\n");
-        this->_response.append("Content-Type: text/html\r\n");
-        this->_response.append("\r\n");
-        this->_response.append("<html>");
-        this->_response.append("<p> ERROR: CGI Response is empty. </p>");
-        this->_response.append("<html>");
-    } else {
-        this->_response.append("HTTP/1.1 200 OK\r\n");
-        this->_response.append("Content-Type: text/html\r\n");
-        this->_response.append("Content-Length: " + strBytesRead.str() + "\r\n");
-        this->_response.append("\r\n");
-        this->_response.append(buffer);
-    }
+void Cgi::pushArgv(const std::string& argv) {
+    this->_argv.push_back(strdup(argv.c_str()));
 }
 
-void Cgi::sendCgiBody(void) {
-    if (pipe(this->_pipefd) == -1 || pipe(this->_responseFd) == -1) {
-        std::cout << "webserv: pipe: " << strerror(errno) << std::endl;
-        return;
-    }
-    write(this->_pipefd[1], this->_body.c_str(), this->_body.length());
-    close(this->_pipefd[1]);
+void Cgi::pushEnv(const std::string& env) {
+    this->_env.push_back(strdup(env.c_str()));
 }
 
 void Cgi::execScript(void) {
+    this->_argv.push_back(NULL);
+    this->_env.push_back(NULL);
+
     int pid = fork();
 
     if (pid == 0) {
@@ -75,41 +62,24 @@ void Cgi::execScript(void) {
     }
 }
 
-// Setters
-void Cgi::setArgv(void) {
-    this->_argv.push_back(strdup("/usr/bin/python3"));
-    this->_argv.push_back(strdup("cgi-bin/upload.py"));
-    this->_argv.push_back(NULL);
-}
+void Cgi::buildResponse(void) {
+    this->_response.clear();
 
-void Cgi::setEnv(void) {
-    this->_env.push_back(getEnvFromHeader("CONTENT_TYPE=", "Content-Type"));
-    this->_env.push_back(getEnvFromHeader("CONTENT_LENGTH=", "Content-Length"));
-    this->_env.push_back(strdup("AUTH_TYPE=Basic"));
-    this->_env.push_back(strdup("DOCUMENT_ROOT=./"));
-    this->_env.push_back(strdup("GATEWAY_INTERFACE=CGI/1.1"));
-    this->_env.push_back(getEnvFromHeader("HTTP_COOKIE=", "Cookie"));
-    this->_env.push_back(strdup("PATH_INFO="));
-    this->_env.push_back(strdup("PATH_TRANSLATED=.//"));
-    this->_env.push_back(strdup("QUERY_STRING="));
-    this->_env.push_back(strdup("REDIRECT_STATUS=200"));
-    this->_env.push_back(strdup("REMOTE_ADDR=localhost:8002"));
-    this->_env.push_back(strdup("REQUEST_METHOD=POST"));
-    this->_env.push_back(strdup("REQUEST_URI=/cgi-bin/upload.py"));
-    this->_env.push_back(strdup("SCRIPT_FILENAME=upload.py"));
-    this->_env.push_back(strdup("SCRIPT_NAME=cgi-bin/upload.py"));
-    this->_env.push_back(strdup("SERVER_NAME=localhost"));
-    this->_env.push_back(strdup("SERVER_PORT=8080"));
-    this->_env.push_back(strdup("SERVER_PROTOCOL=HTTP/1.1"));
-    this->_env.push_back(strdup("SERVER_SOFTWARE=AMANIX"));
-    this->_env.push_back(NULL);
-}
+    char buffer[BUFFER_SIZE + 1];
 
-// Getters
-char* Cgi::getEnvFromHeader(std::string name, std::string key) {
-    size_t startPos = this->_header.find(key);
-    size_t separator = this->_header.find(":", startPos);
-    size_t endPos = this->_header.find("\r\n", separator);
-    std::string env = name + this->_header.substr(separator + 2, endPos - separator - 2);
-    return strdup(env.c_str());
+    size_t bytesRead = read(this->_responseFd[0], buffer, BUFFER_SIZE);
+    close(this->_responseFd[0]);
+
+    std::ostringstream strBytesRead;
+    strBytesRead << bytesRead;
+    if (bytesRead <= 0) {
+        this->_response.append("HTTP/1.1 500 Internal Server Error\r\n");
+        this->_response.append("Content-Type: text/html\r\n");
+        this->_response.append("\r\n");
+        this->_response.append("<html>");
+        this->_response.append("<p> ERROR: CGI Response is empty. </p>");
+        this->_response.append("<html>");
+    } else {
+        this->_response.append(buffer);
+    }
 }
