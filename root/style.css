@@ -38,7 +38,7 @@
 	height: 90vh;
 	justify-content: center;
 	align-items: center;
-	background-image: url("/assets/images/bg.jpeg");
+	background-image: url("../assets/images/bg.jpeg");
 	background-position: center;
 	background-repeat: no-repeat;
 	background-size: cover;

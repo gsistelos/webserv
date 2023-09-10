@@ -87,8 +87,13 @@ void WebServ::start(void) {
 
         size_t i = WebServ::pollFds.size();
         while (i--) {
-            if (WebServ::pollFds[i].revents & POLLIN)
-                WebServ::sockets[i]->handlePollin(i);
+            try {
+                if (WebServ::pollFds[i].revents & POLLIN)
+                    WebServ::sockets[i]->handlePollin(i);
+            } catch (const std::exception& e) {
+                std::cerr << "webserv: " << e.what() << std::endl;
+                WebServ::removeIndex(i);
+            }
         }
     }
 }

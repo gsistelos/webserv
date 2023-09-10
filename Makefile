@@ -5,7 +5,7 @@ SRCS		=	$(addprefix srcs/,	Cgi.cpp Client.cpp Config.cpp Error.cpp main.cpp Pars
 
 OBJS		=	$(SRCS:.cpp=.o)
 
-CXX			=	g++ -g
+CXX			=	g++
 
 CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98 -Iincludes
 
