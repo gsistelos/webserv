@@ -140,7 +140,9 @@ void Client::getPage(const std::string& http, const std::string& uri) {
 }
 
 int Client::isRedirect(const std::string& uri) {
-    if (uri == "/redirect")
+    if (uri == "/")
+        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: ./pages/index.html\r\n\r\n";
+    else if (uri == "/redirect")
         this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
     else
         return 0;
