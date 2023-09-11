@@ -1,6 +1,7 @@
 #include "Cgi.hpp"
 
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include <cstdlib>
 #include <cstring>
