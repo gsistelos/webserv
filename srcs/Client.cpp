@@ -46,9 +46,9 @@ void Client::handlePollin(int index) {
 
     size_t bodySize = this->_server->getMaxBodySize();
 
-    char buffer[bodySize];
+    std::vector<char> buffer(bodySize);
 
-    ssize_t bytes = read(this->_fd, buffer, bodySize);
+    ssize_t bytes = read(this->_fd, buffer.data(), bodySize);
     if (bytes == -1)
         throw Error("read");
     if (bytes == 0) {
@@ -56,8 +56,9 @@ void Client::handlePollin(int index) {
         return;
     }
 
-    this->_request.assign(buffer, bytes);
+    this->_request.assign(buffer.data(), bytes);
 
+    std::cout << "Request: " << this->_request << std::endl;
     this->_headerEnd = this->_request.find("\r\n\r\n");
     if (this->_headerEnd == std::string::npos)
         this->_headerEnd = this->_request.length();
