@@ -1,13 +1,13 @@
 NAME		=	webserv
 
-SRCS		=	$(addprefix srcs/,	Cgi.cpp Client.cpp Config.cpp Error.cpp main.cpp Parser.cpp \
+SRCS		=	$(addprefix srcs/,	Cgi.cpp Client.cpp Config.cpp Error.cpp HttpResponse.cpp main.cpp Parser.cpp \
 									Server.cpp Socket.cpp WebServ.cpp)
 
 OBJS		=	$(SRCS:.cpp=.o)
 
 CXX			=	g++
 
-CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98 -Iincludes
+CXXFLAGS	=	-Wall -Werror -Wextra -Iincludes -std=c++98
 
 RM			=	rm -f
 
