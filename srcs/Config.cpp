@@ -26,9 +26,29 @@ Config::Config(std::string& fileContent) {
             this->setRoot(fileContent);
         else if (word == "client_max_body_size")
             this->setMaxBodySize(fileContent);
+        else if (word == "autoindex")
+            this->setAutoIndex(fileContent);
         else
             throw Error("Invalid content \"" + word + "\"");
     }
+}
+
+void Config::setAutoIndex(std::string& fileContent) {
+    std::string word;
+
+    Parser::extractWord(fileContent, word);
+
+    if (word == "on") {
+        this->autoindex = true;
+    } else if (word == "off") {
+        this->autoindex = false;
+    } else {
+        throw Error("Invalid autoindex");
+    }
+
+    Parser::extractWord(fileContent, word);
+    if (word != ";")
+        throw Error("Expected ';'");
 }
 
 Config::~Config() {

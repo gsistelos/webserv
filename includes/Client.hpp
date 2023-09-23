@@ -29,6 +29,8 @@ class Client : public Socket {
 
     void getPage(const std::string& http, const std::string& uri);
 
+    void handleDirectory(const std::string& uri);
+    void getDirectoryPage(const std::string& uri);
     void badRequest(void);
     void notFound(void);
     void internalServerError(void);

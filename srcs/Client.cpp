@@ -1,6 +1,8 @@
 #include "Client.hpp"
 
 #include <arpa/inet.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <cstring>
@@ -99,13 +101,88 @@ void Client::getMethod(void) {
         return;
 
     uri = this->_server->getRoot() + uri;
-    if (uri[uri.length() - 1] == '/')
-        uri += "index.html";
+    std::cout << "uri with root: " << uri << std::endl;
 
-    if (access(uri.c_str(), F_OK))
+    struct stat uriStat;
+    if (stat(uri.c_str(), &uriStat) == 0) {
+        if (S_ISDIR(uriStat.st_mode)) {
+            this->handleDirectory(uri);
+        } else if (S_ISREG(uriStat.st_mode)) {
+            this->getPage("HTTP/1.1 200 OK", uri);
+        }
+    } else {
         this->getPage("HTTP/1.1 404 Not Found", "default_pages/404.html");
-    else
-        this->getPage("HTTP/1.1 200 OK", uri);
+    }
+}
+
+void Client::handleDirectory(const std::string& uri) {
+    std::string index;
+
+    // TODO: see if we will handle directories without '/' or only with '/'
+    // even though the "stat" consider them the same, the browser doesn't and
+    // the ones without '/' dont get the correct path for additional requests (e.g.: css, images...)
+    // that use relative paths
+    if (uri[uri.length() - 1] != '/') {
+        index = uri + "/index.html";
+    } else {
+        index = uri + "index.html";
+    }
+
+    if (!access(index.c_str(), F_OK)) {
+        this->getPage("HTTP/1.1 200 OK", index);
+        return;
+    }
+
+    if (this->_server->getAutoindex()) {
+        this->getDirectoryPage(uri);
+    } else {
+        this->getPage("HTTP/1.1 403 Forbidden", "default_pages/403.html");
+    }
+}
+
+void Client::getDirectoryPage(const std::string& uri) {
+    std::string responseBody =
+        "<html>\r\n"
+        "<head><title>Index of " +
+        uri +
+        "</title></head>\r\n"
+        "<body>\r\n"
+        "<h1>Index of " +
+        uri +
+        "</h1>\r\n"
+        "<hr>\r\n"
+        "<pre>\r\n";
+
+    DIR* dir = opendir(uri.c_str());
+    if (dir == NULL) {
+        throw Error("opendir");
+    }
+
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] == '.')
+            continue;
+
+        responseBody += "<a href=\"" + std::string(entry->d_name) + "\">" + std::string(entry->d_name) + "</a>\r\n";
+    }
+
+    responseBody +=
+        "</pre>\r\n"
+        "<hr>\r\n"
+        "</body>\r\n"
+        "</html>\r\n";
+
+    if (closedir(dir) == -1)
+        throw Error("closedir");
+
+    std::stringstream responseStream;
+    responseStream << "HTTP/1.1 200 OK"
+                   << "\r\n"
+                   << "Content-Length: " << responseBody.length() << "\r\n"
+                   << "\r\n"
+                   << responseBody;
+
+    this->_response = responseStream.str();
 }
 
 void Client::postMethod(void) {

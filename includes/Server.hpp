@@ -16,6 +16,7 @@ class Server : public Socket {
 
     const std::string& getRoot(void);
     size_t getMaxBodySize(void);
+    bool getAutoindex(void);
 
     void handlePollin(int index);
 
