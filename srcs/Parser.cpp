@@ -4,7 +4,7 @@
 
 void Parser::readFile(const std::string& filename, std::string& buf) {
     std::ifstream file(filename.c_str());
-    if (!file)
+    if (!file.is_open())
         throw Error(filename);
 
     buf = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
