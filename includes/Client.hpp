@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 
+#include "HttpRequest.hpp"
 #include "Socket.hpp"
 
 class Server;
@@ -20,21 +21,13 @@ class Client : public Socket {
 
    private:
     Server* _server;
-    std::string _header;
-    std::string _body;
+    HttpRequest _request;
     std::string _response;
 
     void getMethod(void);
     void postMethod(void);
     void deleteMethod(void);
 
-    std::string getHeaderValue(const std::string& header);
-
-    void readHeader(int index);
-    void readBody(void);
-
     void handleDirectory(const std::string& uri);
     void getDirectoryPage(const std::string& uri);
-
-    static const std::string* getRedirect(const std::string& key);
 };
