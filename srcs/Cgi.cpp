@@ -12,7 +12,7 @@
 
 #define BUFFER_SIZE 1024 * 1024  // 1 MB
 
-Cgi::Cgi(const std::string& path, const std::string& header, const std::string& body) : _header(header), _body(body) {
+Cgi::Cgi(const std::string& path, const std::string& body) : _body(body) {
     this->_argv.push_back(strdup(path.c_str()));
     this->_argv.push_back(NULL);
 }
