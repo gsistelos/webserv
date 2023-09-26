@@ -2,18 +2,24 @@
 
 #include <arpa/inet.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <sstream>
 
 #include "Cgi.hpp"
 #include "Error.hpp"
+#include "HttpResponse.hpp"
 #include "Parser.hpp"
 #include "Server.hpp"
 #include "WebServ.hpp"
+
+#define BUFFER_SIZE 2048  // 2 KB
 
 Client::Client(Server* server) {
     this->_server = server;
@@ -24,6 +30,9 @@ Client::Client(Server* server) {
     this->_fd = accept(server->getFd(), (sockaddr*)&address, &addrlen);
     if (this->_fd == -1)
         throw Error("accept");
+
+    if (fcntl(this->_fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC))
+        throw Error("fcntl");
 
     WebServ::sockets.push_back(this);
     WebServ::pushPollfd(this->_fd);
@@ -44,31 +53,16 @@ Client::~Client() {
 }
 
 void Client::handlePollin(int index) {
-    std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
-
-    size_t bodySize = this->_server->getMaxBodySize();
-
-    std::vector<char> buffer(bodySize);
-
-    ssize_t bytes = read(this->_fd, buffer.data(), bodySize);
-    if (bytes == -1)
-        throw Error("read");
-    if (bytes == 0) {
-        WebServ::removeIndex(index);
-        return;
-    }
-
-    this->_request.assign(buffer.data(), bytes);
-
-    std::cout << "Request: " << this->_request << std::endl;
-    this->_headerEnd = this->_request.find("\r\n\r\n");
-    if (this->_headerEnd == std::string::npos)
-        this->_headerEnd = this->_request.length();
-
-    std::string method;
-    Parser::getWord(this->_request, method);
-
     try {
+        std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
+
+        this->readHeader(index);
+
+        this->readBody();
+
+        std::string method;
+        Parser::getWord(this->_header, method);
+
         if (method == "GET")
             getMethod();
         else if (method == "POST")
@@ -76,68 +70,118 @@ void Client::handlePollin(int index) {
         else if (method == "DELETE")
             deleteMethod();
         else
-            this->getPage("HTTP/1.1 501 Not Implemented", this->_server->getRoot() + "default_pages/501.html");
+            this->_response = HttpResponse::pageResponse(405, "default_pages/405.html");
+    } catch (const Error& e) {
+        std::cerr << "webserv: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "webserv: " << e.what() << std::endl;
-        this->internalServerError();
+        this->_response = HttpResponse::internalServerError;
     }
 
     if (WebServ::pollFds[index].revents & POLLOUT) {
-        bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
-        if (bytes == -1)
+        size_t bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
+        if (bytes == (size_t)-1)
             throw Error("write");
-        if (bytes == 0) {
-            WebServ::removeIndex(index);
-            return;
-        }
     }
 }
 
-void Client::getMethod(void) {
-    std::string uri;
-    Parser::getWord(this->_request, uri, 4);
+void Client::readHeader(int index) {
+    char headerBuffer[BUFFER_SIZE];
 
-    if (this->isRedirect(uri))
+    size_t bytes = read(this->_fd, headerBuffer, BUFFER_SIZE);
+    if (bytes == (size_t)-1) {
+        this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
+        throw Error("read");
+    }
+    if (bytes == 0) {
+        WebServ::removeIndex(index);
+        return;
+    }
+
+    this->_header.assign(headerBuffer, bytes);
+
+    // Split header and body
+
+    size_t headerEnd = this->_header.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        this->_body.clear();
+    } else {
+        headerEnd += 4;
+        this->_body = this->_header.substr(headerEnd);
+        this->_header = this->_header.substr(0, headerEnd);
+    }
+
+    // std::cout << "======= HEADER =======" << std::endl;
+    // std::cout << this->_header << std::endl;
+    // std::cout << "======================" << std::endl;
+}
+
+void Client::readBody(void) {
+    if (!this->_body.length())
         return;
 
-    uri = this->_server->getRoot() + uri;
-    std::cout << "uri with root: " << uri << std::endl;
-
-    struct stat uriStat;
-    if (stat(uri.c_str(), &uriStat) == 0) {
-        if (S_ISDIR(uriStat.st_mode)) {
-            this->handleDirectory(uri);
-        } else if (S_ISREG(uriStat.st_mode)) {
-            this->getPage("HTTP/1.1 200 OK", uri);
-        }
-    } else {
-        this->getPage("HTTP/1.1 404 Not Found", "default_pages/404.html");
+    std::string contentLengthHeader;
+    try {
+        contentLengthHeader = this->getHeaderValue("Content-Length: ");
+    } catch (const Error& e) {
+        this->_response = HttpResponse::pageResponse(411, "default_pages/411.html");
+        throw Error("411 Length Required");
     }
+
+    size_t contentLength = std::strtoll(contentLengthHeader.c_str(), NULL, 10);
+    if (errno == ERANGE) {
+        this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
+        throw Error("400 Bad Request");
+    }
+
+    if (contentLength > this->_server->getMaxBodySize()) {
+        this->_response = HttpResponse::pageResponse(413, "default_pages/413.html");
+        throw Error("413 Payload Too Large");
+    }
+
+    contentLength -= this->_body.length();
+
+    char* bodyBuffer = new char[contentLength];
+
+    size_t bytes;
+    size_t bytesRead = 0;
+    while (bytesRead < contentLength) {
+        if (BUFFER_SIZE < contentLength - bytesRead)
+            bytes = read(this->_fd, bodyBuffer + bytesRead, BUFFER_SIZE);
+        else
+            bytes = read(this->_fd, bodyBuffer + bytesRead, contentLength - bytesRead);
+        if (bytes == (size_t)-1) {
+            this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
+            throw Error("read");
+        }
+        bytesRead += bytes;
+    }
+
+    this->_body.insert(this->_body.length(), bodyBuffer, bytesRead);
+    delete[] bodyBuffer;
+
+    // std::cout << "======= BODY =======" << std::endl;
+    // std::cout << this->_body << std::endl;
+    // std::cout << "====================" << std::endl;
 }
 
 void Client::handleDirectory(const std::string& uri) {
-    std::string index;
-
-    // TODO: see if we will handle directories without '/' or only with '/'
-    // even though the "stat" consider them the same, the browser doesn't and
-    // the ones without '/' dont get the correct path for additional requests (e.g.: css, images...)
-    // that use relative paths
     if (uri[uri.length() - 1] != '/') {
-        index = uri + "/index.html";
-    } else {
-        index = uri + "index.html";
-    }
-
-    if (!access(index.c_str(), F_OK)) {
-        this->getPage("HTTP/1.1 200 OK", index);
+        this->_response = HttpResponse::redirectResponse(uri.substr(this->_server->getRoot().length()) + "/");
         return;
     }
 
-    if (this->_server->getAutoindex()) {
-        this->getDirectoryPage(uri);
-    } else {
-        this->getPage("HTTP/1.1 403 Forbidden", "default_pages/403.html");
+    std::string index = uri + "index.html";
+
+    if (!access(index.c_str(), F_OK)) {
+        this->_response = HttpResponse::pageResponse(200, index);
+        return;
     }
+
+    if (this->_server->getAutoindex())
+        this->getDirectoryPage(uri);
+    else
+        this->_response = HttpResponse::pageResponse(403, "default_pages/403.html");
 }
 
 void Client::getDirectoryPage(const std::string& uri) {
@@ -154,94 +198,110 @@ void Client::getDirectoryPage(const std::string& uri) {
         "<pre>\r\n";
 
     DIR* dir = opendir(uri.c_str());
-    if (dir == NULL) {
+    if (dir == NULL)
         throw Error("opendir");
-    }
 
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL) {
         if (entry->d_name[0] == '.')
             continue;
 
-        responseBody += "<a href=\"" + std::string(entry->d_name) + "\">" + std::string(entry->d_name) + "</a>\r\n";
+        std::string path = entry->d_name;
+
+        responseBody += "<a href=\"" + path + "\">" + path + "</a>\r\n";
     }
 
     responseBody +=
         "</pre>\r\n"
-        "<hr>\r\n"
+        "</hr>\r\n"
         "</body>\r\n"
         "</html>\r\n";
 
     if (closedir(dir) == -1)
         throw Error("closedir");
 
-    std::stringstream responseStream;
-    responseStream << "HTTP/1.1 200 OK"
-                   << "\r\n"
-                   << "Content-Length: " << responseBody.length() << "\r\n"
-                   << "\r\n"
-                   << responseBody;
+    HttpResponse response;
+    response.setStatusCode(200);
+    response.setHeader("Content-Type", "text/html");
+    response.setHeader("Content-Length", responseBody.length());
+    response.setBody(responseBody);
 
-    this->_response = responseStream.str();
+    this->_response = response.toString();
+}
+
+// HTTP methods
+
+void Client::getMethod(void) {
+    std::string uri;
+    Parser::getWord(this->_header, uri, 3);
+
+    const std::string* redirect = getRedirect(uri);
+
+    if (redirect) {
+        this->_response = HttpResponse::redirectResponse(*redirect);
+        return;
+    }
+
+    uri = this->_server->getRoot() + uri;
+
+    struct stat uriStat;
+    if (stat(uri.c_str(), &uriStat)) {
+        if (errno == ENOENT)
+            this->_response = HttpResponse::pageResponse(404, "default_pages/404.html");
+        else
+            this->_response = HttpResponse::internalServerError;
+        return;
+    }
+
+    if (S_ISDIR(uriStat.st_mode))
+        this->handleDirectory(uri);
+    else if (S_ISREG(uriStat.st_mode))
+        this->_response = HttpResponse::pageResponse(200, uri);
+    else
+        this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
 }
 
 void Client::postMethod(void) {
-    Cgi cgi(this->_request, this->_headerEnd, this->_response);
-    cgi.setCgiPath("cgi-bin/upload.py");
+    Cgi cgi("cgi-bin/upload.py", this->_header, this->_body);
 
-    cgi.pushEnv("REQUEST_METHOD=POST");
-    cgi.pushEnvFromHeader("Content-Type: ", "CONTENT_TYPE=");
+    cgi.setEnv("REQUEST_METHOD=POST");
+    cgi.setEnv("TRANSFER_ENCODING=chunked");
+    cgi.setEnv("CONTENT_TYPE=" + this->getHeaderValue("Content-Type: "));
+    cgi.setEnv("CONTENT_LENGTH=" + this->getHeaderValue("Content-Length: "));
 
-    cgi.execScript();
+    this->_response = cgi.getResponse();
 }
 
 void Client::deleteMethod(void) {
-    _response = "HTTP/1.1 400 Method In Development\r\n\r\n";
+    this->_response = HttpResponse::pageResponse(501, "default_pages/501.html");
 }
 
-void Client::getPage(const std::string& http, const std::string& uri) {
-    try {
-        std::string buffer;
-        Parser::readFile(uri, buffer);
+// Private getters
 
-        std::stringstream responseStream;
-        responseStream << http << "\r\n"
-                       << "Content-Length: " << buffer.length() << "\r\n"
-                       << "\r\n"
-                       << buffer;
+std::string Client::getHeaderValue(const std::string& header) {
+    size_t headerStart = this->_header.find(header);
+    if (headerStart == std::string::npos)
+        throw Error("header not found");
 
-        this->_response = responseStream.str();
-    } catch (const std::exception& e) {
-        std::cerr << "webserv: " << e.what() << std::endl;
-        this->internalServerError();
+    headerStart += header.length();
+    size_t headerEnd = this->_header.find("\r\n", headerStart);
+    if (headerEnd == std::string::npos)
+        throw Error("header not found");
+
+    return this->_header.substr(headerStart, headerEnd - headerStart);
+}
+
+// Static map getters
+
+const std::string* Client::getRedirect(const std::string& key) {
+    static std::map<std::string, std::string> redirect;
+
+    if (redirect.empty()) {
+        redirect["/redirect"] = "https://www.google.com";
+        redirect["/"] = "/pages/";
     }
-}
 
-int Client::isRedirect(const std::string& uri) {
-    if (uri == "/")
-        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: ./pages/index.html\r\n\r\n";
-    else if (uri == "/redirect")
-        this->_response = "HTTP/1.1 301 Moved Permanently\r\nLocation: http://www.google.com/\r\n\r\n";
-    else
-        return 0;
-    return 1;
-}
-
-void Client::internalServerError(void) {
-    std::stringstream buffer;
-    buffer << "<html>\r\n"
-           << "<head><title>500 Internal Server Error</title></head>\r\n"
-           << "<body>\r\n"
-           << "<h1>500 Internal Server Error</h1>\r\n"
-           << "<p>The server encountered an unexpected condition that prevented it from fulfilling the request</p>\r\n"
-           << "<a href=\"/\">Back to Home</a>\r\n"
-           << "</body>\r\n"
-           << "</html>\r\n";
-
-    std::stringstream responseStream;
-    responseStream << "HTTP/1.1 500 Internal Server Error\r\n"
-                   << "Content-Length: " << buffer.str().length() << "\r\n"
-                   << "\r\n"
-                   << buffer.str();
-    this->_response = responseStream.str();
+    if (redirect.count(key))
+        return &redirect.at(key);
+    return NULL;
 }

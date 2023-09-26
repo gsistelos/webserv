@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <string>
 
 #include "Socket.hpp"
@@ -19,22 +20,21 @@ class Client : public Socket {
 
    private:
     Server* _server;
-    std::string _request;
-    size_t _headerEnd;
+    std::string _header;
+    std::string _body;
     std::string _response;
 
     void getMethod(void);
     void postMethod(void);
     void deleteMethod(void);
 
-    void getPage(const std::string& http, const std::string& uri);
+    std::string getHeaderValue(const std::string& header);
+
+    void readHeader(int index);
+    void readBody(void);
 
     void handleDirectory(const std::string& uri);
     void getDirectoryPage(const std::string& uri);
-    void badRequest(void);
-    void notFound(void);
-    void internalServerError(void);
-    void notImplemented(void);
 
-    int isRedirect(const std::string& uri);
+    static const std::string* getRedirect(const std::string& key);
 };
