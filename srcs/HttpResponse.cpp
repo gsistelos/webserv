@@ -122,6 +122,7 @@ const std::string& HttpResponse::getStatusMessage(int statusCode) {
         statusMessage[301] = "Moved Permanently";
         statusMessage[400] = "Bad Request";
         statusMessage[404] = "Not Found";
+        statusMessage[403] = "Forbidden";
         statusMessage[405] = "Method Not Allowed";
         statusMessage[500] = "Internal Server Error";
         statusMessage[501] = "Not Implemented";
