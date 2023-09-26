@@ -162,7 +162,7 @@ void Client::getMethod(void) {
     std::string uri;
     Parser::getWord(this->_header, uri, 3);
 
-    const std::string* redirect = getRedirect(uri);
+    const std::string* redirect = this->_server->getRedirect(uri);
 
     if (redirect) {
         HttpResponse response;
@@ -182,7 +182,7 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi cgi("cgi-bin/upload.py", this->_header, this->_body);
+    Cgi cgi("cgi-bin/upload.py", this->_body);
 
     cgi.setEnv("REQUEST_METHOD=POST");
     cgi.setEnv("TRANSFER_ENCODING=chunked");
@@ -208,3 +208,18 @@ std::string Client::getHeaderValue(const std::string& header) {
 
     return this->_header.substr(headerStart, headerEnd - headerStart);
 }
+
+// Static map getters
+
+// const std::string* Client::getRedirect(const std::string& key) {
+//     static std::map<std::string, std::string> redirect;
+
+//     if (redirect.empty()) {
+//         redirect["/redirect"] = "https://www.google.com";
+//         redirect["/"] = "/pages/";
+//     }
+
+//     if (redirect.count(key))
+//         return &redirect.at(key);
+//     return NULL;
+// }

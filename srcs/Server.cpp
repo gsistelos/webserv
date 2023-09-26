@@ -64,6 +64,12 @@ const std::string& Server::getRoot(void) {
     return this->_config.root;
 }
 
+const std::string* Server::getRedirect(const std::string& uri) {
+    if (this->_config.redirects.count(uri))
+        return &this->_config.redirects[uri];
+    return NULL;
+}
+
 size_t Server::getMaxBodySize(void) {
     return this->_config.maxBodySize;
 }
