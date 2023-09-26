@@ -7,7 +7,7 @@ OBJS		=	$(SRCS:.cpp=.o)
 
 CXX			=	g++
 
-CXXFLAGS	=	-Wall -Werror -Wextra -Iincludes -std=c++98
+CXXFLAGS	=	-Wall -Werror -Wextra -std=c++98 -Iincludes 
 
 RM			=	rm -f
 

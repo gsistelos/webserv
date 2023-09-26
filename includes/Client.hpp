@@ -30,5 +30,11 @@ class Client : public Socket {
 
     std::string getHeaderValue(const std::string& header);
 
+    void readHeader(int index);
+    void readBody(void);
+
+    void handleDirectory(const std::string& uri);
+    void getDirectoryPage(const std::string& uri);
+
     static const std::string* getRedirect(const std::string& key);
 };

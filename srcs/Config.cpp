@@ -1,6 +1,7 @@
 #include "Config.hpp"
 
 #include <cstdlib>
+#include <iostream>
 
 #include "Error.hpp"
 #include "Parser.hpp"
@@ -26,9 +27,71 @@ Config::Config(std::string& fileContent) {
             this->setRoot(fileContent);
         else if (word == "client_max_body_size")
             this->setMaxBodySize(fileContent);
+        else if (word == "autoindex")
+            this->setAutoIndex(fileContent);
+        else if (word == "location")
+            this->setLocation(fileContent);
         else
             throw Error("Invalid content \"" + word + "\"");
     }
+}
+
+void Config::setAutoIndex(std::string& fileContent) {
+    std::string word;
+
+    Parser::extractWord(fileContent, word);
+
+    if (word == "on") {
+        this->autoindex = true;
+    } else if (word == "off") {
+        this->autoindex = false;
+    } else {
+        throw Error("Invalid autoindex");
+    }
+
+    Parser::extractWord(fileContent, word);
+    if (word != ";")
+        throw Error("Expected ';'");
+}
+
+void Config::setLocation(std::string& fileContent) {
+    std::string route;
+    Parser::extractWord(fileContent, route);
+
+    if (route == ";" || route == "{" || route == "}" || route.empty())
+        throw Error("Invalid location route");
+
+    std::string word;
+    Parser::extractWord(fileContent, word);
+
+    if (word != "{")
+        throw Error("Expected '{'");
+
+    while (1) {
+        Parser::extractWord(fileContent, word);
+        if (word.empty())
+            throw Error("Unexpected end of file");
+        if (word == "}")
+            break;
+
+        if (word == "return")
+            this->setRedirect(fileContent, route);
+        else
+            throw Error("Invalid content \"" + word + "\"");
+    }
+}
+
+void Config::setRedirect(std::string& fileContent, const std::string& route) {
+    std::string word;
+    Parser::extractWord(fileContent, word);
+
+    if (word == ";" || word == "{" || word == "}" || word.empty())
+        throw Error("Expected an redirect route");
+
+    this->redirects.insert(std::pair<std::string, std::string>(route, word));
+    Parser::extractWord(fileContent, word);
+    if (word != ";")
+        throw Error("Expected ';'");
 }
 
 Config::~Config() {
