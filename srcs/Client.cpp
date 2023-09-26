@@ -24,7 +24,7 @@ const std::string* Client::getRedirect(const std::string& key) {
 
     if (redirect.empty()) {
         redirect["/redirect"] = "https://www.google.com";
-        redirect["/"] = "http://127.0.0.1:8080/pages/";
+        redirect["/"] = "http://127.0.0.1:4000/pages/";
     }
 
     if (redirect.count(key))
