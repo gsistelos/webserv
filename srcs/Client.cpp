@@ -131,6 +131,7 @@ void Client::getDirectoryPage(const std::string& uri) {
         "<hr>\r\n"
         "<pre>\r\n";
 
+    responseBody += "<a href=\"../\">../</a>\r\n";
     DIR* dir = opendir(uri.c_str());
     if (dir == NULL)
         throw Error("opendir");
