@@ -28,20 +28,6 @@ void Cgi::setEnv(const std::string& env) {
     this->_env.push_back(strdup(env.c_str()));
 }
 
-void Cgi::setEnvFromHeader(const std::string& headerName, const std::string& envKey) {
-    size_t startPos = this->_header.find(headerName.c_str());
-    if (startPos > std::string::npos)
-        throw Error("header content not found");
-
-    startPos += headerName.length();
-
-    size_t endPos = this->_header.find("\r\n", startPos);
-    if (endPos == std::string::npos)
-        throw Error("header content end not found");
-
-    this->setEnv(envKey + this->_header.substr(startPos, endPos - startPos));
-}
-
 std::string Cgi::getResponse(void) {
     this->_argv.push_back(NULL);
     this->_env.push_back(NULL);

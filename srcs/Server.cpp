@@ -74,6 +74,10 @@ size_t Server::getMaxBodySize(void) {
     return this->_config.maxBodySize;
 }
 
+bool Server::getAutoindex(void) {
+    return this->_config.autoindex;
+}
+
 void Server::handlePollin(int index) {
     (void)index;
 

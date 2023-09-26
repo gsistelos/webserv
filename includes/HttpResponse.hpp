@@ -18,7 +18,8 @@ class HttpResponse {
     std::string toString(void) const;
 
     static std::string pageResponse(int status, const std::string& uri);
-    static std::string accessPage(const std::string& uri);
+    static std::string redirectResponse(const std::string& uri);
+
     static std::string contentType(const std::string& uri);
 
    private:
