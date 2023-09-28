@@ -12,7 +12,7 @@
 
 #define BUFFER_SIZE 1024 * 1024  // 1 MB
 
-Cgi::Cgi(const std::string& path, const std::string& body) : _body(body) {
+Cgi::Cgi(const std::string& path) {
     this->_argv.push_back(strdup(path.c_str()));
     this->_argv.push_back(NULL);
 }
@@ -24,11 +24,16 @@ Cgi::~Cgi(void) {
         free(*it);
 }
 
+void Cgi::setBody(const std::string& body) {
+    this->_body = body;
+}
+
 void Cgi::setEnv(const std::string& env) {
     this->_env.push_back(strdup(env.c_str()));
 }
 
 std::string Cgi::getResponse(void) {
+    // Why we need to add NULL to the end of the argv twice?
     this->_argv.push_back(NULL);
     this->_env.push_back(NULL);
 
@@ -70,13 +75,17 @@ std::string Cgi::getResponse(void) {
     close(requestFd[0]);
     close(responseFd[1]);
 
-    // Send request to CGI
+    // Send request to CGI (POST method)
 
-    ssize_t bytes = write(requestFd[1], this->_body.c_str(), this->_body.length());
-    close(requestFd[1]);
-    if (bytes == -1) {
-        close(responseFd[0]);
-        throw Error("write");
+    ssize_t bytes;
+
+    if (!this->_body.empty()) {
+        bytes = write(requestFd[1], this->_body.c_str(), this->_body.length());
+        close(requestFd[1]);
+        if (bytes == -1) {
+            close(responseFd[0]);
+            throw Error("write");
+        }
     }
 
     waitpid(pid, NULL, 0);

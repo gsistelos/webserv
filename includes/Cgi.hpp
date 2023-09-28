@@ -5,10 +5,11 @@
 
 class Cgi {
    public:
-    Cgi(const std::string& path, const std::string& body);
+    Cgi(const std::string& path);
     ~Cgi();
 
     void setEnv(const std::string& env);
+    void setBody(const std::string& body);
 
     std::string getResponse(void);
 
@@ -16,5 +17,5 @@ class Cgi {
     std::vector<char*> _argv;
     std::vector<char*> _env;
 
-    const std::string& _body;
+    std::string _body;
 };
