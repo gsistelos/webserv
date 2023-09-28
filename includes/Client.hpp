@@ -27,6 +27,7 @@ class Client : public Socket {
     void getMethod(void);
     void postMethod(void);
     void deleteMethod(void);
+    bool fileSearch(std::string uri);
 
     void handleDirectory(const std::string& uri);
     void getDirectoryPage(const std::string& uri);

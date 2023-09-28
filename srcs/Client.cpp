@@ -166,7 +166,27 @@ void Client::getDirectoryPage(const std::string& uri) {
 
 // HTTP methods
 
+bool Client::fileSearch(std::string uri) {
+    std::string path = uri.substr(0, uri.find("?"));
+    std::string query = uri.substr(uri.find("?") + 1, uri.length());
+
+    if (path == "/cgi-bin/search.py") {
+        Cgi cgi("cgi-bin/search.py");
+        cgi.setEnv("REQUEST_METHOD=GET");
+        cgi.setEnv("QUERY_STRING=" + query);
+
+        this->_response = cgi.getResponse();
+        if (this->_response == "File not found\n")
+            this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
+        return 1;
+    }
+    return 0;
+}
+
 void Client::getMethod(void) {
+    if (this->fileSearch(this->_request.getUri()))
+        return;
+
     const std::string* redirect = this->_server->getRedirect(this->_request.getUri());
 
     if (redirect) {
@@ -194,8 +214,9 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi cgi("cgi-bin/upload.py", this->_request.getBody());
+    Cgi cgi("cgi-bin/upload.py");
 
+    cgi.setBody(this->_request.getBody());
     cgi.setEnv("REQUEST_METHOD=POST");
     cgi.setEnv("TRANSFER_ENCODING=chunked");
     cgi.setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
