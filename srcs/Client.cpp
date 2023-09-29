@@ -1,24 +1,5 @@
 #include "Client.hpp"
 
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <map>
-#include <sstream>
-
-#include "Cgi.hpp"
-#include "Error.hpp"
-#include "HttpResponse.hpp"
-#include "Parser.hpp"
-#include "Server.hpp"
-#include "WebServ.hpp"
-
 #define BUFFER_SIZE 2048  // 2 KB
 
 Client::Client(Server* server) {
@@ -34,7 +15,7 @@ Client::Client(Server* server) {
     if (fcntl(this->_fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC))
         throw Error("fcntl");
 
-    WebServ::sockets.push_back(this);
+    WebServ::fds.push_back(this);
     WebServ::pushPollfd(this->_fd);
 
     // Get client address and port
@@ -87,15 +68,14 @@ void Client::handlePollin(int index) {
     }
 
     this->_request.clear();
+}
 
-    // std::cout << "===== RESPONSE =====" << std::endl;
-    // std::cout << this->_response << std::endl;
-    // std::cout << "====================" << std::endl;
-
-    if (WebServ::pollFds[index].revents & POLLOUT) {
+void Client::handlePollout(void) {
+    if (!this->_response.empty()) {
         size_t bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
         if (bytes == (size_t)-1)
             throw Error("write");
+        this->_response.clear();
     }
 }
 
@@ -194,14 +174,13 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi cgi("cgi-bin/upload.py", this->_request.getBody());
+    Cgi* cgi = new Cgi("cgi-bin/upload.py", this->_request.getBody(), this->_response);
 
-    cgi.setEnv("REQUEST_METHOD=POST");
-    cgi.setEnv("TRANSFER_ENCODING=chunked");
-    cgi.setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
-    cgi.setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
-
-    this->_response = cgi.getResponse();
+    cgi->setEnv("REQUEST_METHOD=POST");
+    cgi->setEnv("TRANSFER_ENCODING=chunked");
+    cgi->setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
+    cgi->setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
+    cgi->execScript();
 }
 
 void Client::deleteMethod(void) {
