@@ -1,19 +1,5 @@
 #include "Server.hpp"
 
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <unistd.h>
-
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-
-#include "Client.hpp"
-#include "Error.hpp"
-#include "Parser.hpp"
-#include "WebServ.hpp"
-
 #define MAX_CLIENTS 128
 
 Server::Server(std::string& fileContent) : _config(fileContent) {
@@ -51,7 +37,7 @@ Server::Server(std::string& fileContent) : _config(fileContent) {
     if (listen(this->_fd, MAX_CLIENTS) == -1)
         throw Error("listen");
 
-    WebServ::sockets.push_back(this);
+    WebServ::fds.push_back(this);
     WebServ::pushPollfd(this->_fd);
 
     std::cout << "Created server: " << this->_config.ip << ":" << this->_config.port << " on fd " << this->_fd << std::endl;
@@ -87,3 +73,5 @@ void Server::handlePollin(int index) {
         std::cerr << "webserv: " << e.what() << std::endl;
     }
 }
+
+void Server::handlePollout(void){};

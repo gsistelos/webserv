@@ -1,11 +1,18 @@
 #pragma once
 
 #include <poll.h>
+#include <signal.h>
 
+#include <cstring>
+#include <iostream>
 #include <string>
 #include <vector>
 
-#include "Socket.hpp"
+#include "Client.hpp"
+#include "Error.hpp"
+#include "Fd.hpp"
+#include "Parser.hpp"
+#include "Server.hpp"
 
 /*
  * WebServ class is the core
@@ -19,7 +26,7 @@ class WebServ {
     ~WebServ();
 
     static std::vector<pollfd> pollFds;
-    static std::vector<Socket*> sockets;
+    static std::vector<Fd*> fds;
     static bool quit;
 
     static void pushPollfd(int fd);
