@@ -25,10 +25,6 @@ Server::Server(std::string& fileContent) : _config(fileContent) {
     address.sin_family = AF_INET;
     address.sin_port = htons(this->_config.port);
 
-    // TODO: remove forbidden function inet_pton
-    if (inet_pton(AF_INET, this->_config.ip.c_str(), &address.sin_addr) != 1)
-        throw Error("inet_pton");
-
     if (bind(this->_fd, (struct sockaddr*)&address, sizeof(address)) == -1)
         throw Error("bind");
 
