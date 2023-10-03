@@ -1,16 +1,7 @@
 #include "WebServ.hpp"
 
-#include <signal.h>
-
-#include <cstring>
-#include <iostream>
-
-#include "Error.hpp"
-#include "Parser.hpp"
-#include "Server.hpp"
-
 std::vector<pollfd> WebServ::pollFds;
-std::vector<Socket*> WebServ::sockets;
+std::vector<Fd*> WebServ::fds;
 bool WebServ::quit = false;
 
 void sighandler(int signo) {
@@ -27,6 +18,9 @@ WebServ::~WebServ() {
         WebServ::removeIndex(i);
 }
 
+/*
+Create pollfd struct and push it to pollFds vector
+*/
 void WebServ::pushPollfd(int fd) {
     pollfd pollFd;
     pollFd.fd = fd;
@@ -38,8 +32,8 @@ void WebServ::pushPollfd(int fd) {
 void WebServ::removeIndex(int index) {
     WebServ::pollFds.erase(WebServ::pollFds.begin() + index);
 
-    delete WebServ::sockets[index];
-    WebServ::sockets.erase(WebServ::sockets.begin() + index);
+    delete WebServ::fds[index];
+    WebServ::fds.erase(WebServ::fds.begin() + index);
 }
 
 void WebServ::configure(const std::string& configFile) {
@@ -89,7 +83,9 @@ void WebServ::start(void) {
         while (i--) {
             try {
                 if (WebServ::pollFds[i].revents & POLLIN)
-                    WebServ::sockets[i]->handlePollin(i);
+                    WebServ::fds[i]->handlePollin(i);
+                else if (WebServ::pollFds[i].revents & POLLOUT)
+                    WebServ::fds[i]->handlePollout();
             } catch (const std::exception& e) {
                 std::cerr << "webserv: " << e.what() << std::endl;
                 WebServ::removeIndex(i);
