@@ -46,10 +46,6 @@ void Client::handlePollin(int index) {
             return;
         }
 
-        // std::cout << "===== FULL BODY =====" << std::endl;
-        // std::cout << this->_request.getBody() << std::endl;
-        // std::cout << "====================" << std::endl;
-
         std::string method = this->_request.getMethod();
 
         if (method == "GET")
@@ -146,25 +142,22 @@ void Client::getDirectoryPage(const std::string& uri) {
 
 // HTTP methods
 
-bool Client::fileSearch(std::string uri) {
+bool Client::isRegister(std::string uri) {
     std::string path = uri.substr(0, uri.find("?"));
-    std::string query = uri.substr(uri.find("?") + 1, uri.length());
 
-    if (path == "/cgi-bin/search.py") {
-        Cgi* cgi = new Cgi("cgi-bin/search.py", this->_request.getBody(), this->_response);
+    if (path == "/cgi-bin/register.py") {
+        std::string query = uri.substr(uri.find("?") + 1, uri.length());
+        Cgi* cgi = new Cgi("cgi-bin/register.py", this->_request.getBody(), this->_response);
         cgi->setEnv("REQUEST_METHOD=GET");
         cgi->setEnv("QUERY_STRING=" + query);
-
         cgi->execScript();
-        if (this->_response == "File not found\n")
-            this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
         return 1;
     }
     return 0;
 }
 
 void Client::getMethod(void) {
-    if (this->fileSearch(this->_request.getUri()))
+    if (this->isRegister(this->_request.getUri()))
         return;
 
     const std::string* redirect = this->_server->getRedirect(this->_request.getUri());

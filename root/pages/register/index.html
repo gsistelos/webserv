@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap" rel="stylesheet">
-    <title>Search</title>
+    <title>Register</title>
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
@@ -16,17 +16,18 @@
         <nav class="menu">
             <a href="/pages/">Home</a>
             <a href="/pages/upload/">Join our team</a>
-            <a href="/pages/search/">Search</a>
+            <a href="/pages/register/">Register</a>
             <a href="/redirect">Redirect</a>
         </nav>
         <div class="content">
-            <form action="/cgi-bin/search.py" method="get">
+            <form action="/cgi-bin/register.py" method="get">
                 <div class="description">
-                    <h2>Search your favorite files!</h2>
-                    <span>Want to take a look the file you sent?</span>
+                    <h2>Register your data!</h2>
+                    <span>Fill the inputs below</span>
                 </div>
-                <input placeholder="Filename" class="input" type="text" name="filename">
-                <input class="button" type="submit" value="Search 🔎">
+                <input placeholder="First Name" class="input" type="text" name="first_name">
+                <input placeholder="Last Name" class="input" type="text" name="last_name">
+                <input class="button" type="submit" value="Register">
             </form>
         </div>
     </div>
