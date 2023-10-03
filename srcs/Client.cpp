@@ -151,11 +151,11 @@ bool Client::fileSearch(std::string uri) {
     std::string query = uri.substr(uri.find("?") + 1, uri.length());
 
     if (path == "/cgi-bin/search.py") {
-        Cgi cgi("cgi-bin/search.py");
-        cgi.setEnv("REQUEST_METHOD=GET");
-        cgi.setEnv("QUERY_STRING=" + query);
+        Cgi* cgi = new Cgi("cgi-bin/search.py", this->_request.getBody(), this->_response);
+        cgi->setEnv("REQUEST_METHOD=GET");
+        cgi->setEnv("QUERY_STRING=" + query);
 
-        this->_response = cgi.getResponse();
+        cgi->execScript();
         if (this->_response == "File not found\n")
             this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
         return 1;

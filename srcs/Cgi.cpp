@@ -19,10 +19,6 @@ Cgi::~Cgi(void) {
         free(*it);
 }
 
-void Cgi::setBody(const std::string& body) {
-    this->_body = body;
-}
-
 void Cgi::setEnv(const std::string& env) {
     this->_env.push_back(strdup(env.c_str()));
 }
@@ -74,7 +70,8 @@ void Cgi::execScript(void) {
 
     // Send request to CGI (POST method)
 
-    this->sendBody();
+    if (!this->_body.empty())
+        this->sendBody();
 }
 
 void Cgi::sendBody(void) {

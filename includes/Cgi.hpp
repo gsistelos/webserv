@@ -20,7 +20,6 @@ class Cgi : public Fd {
     ~Cgi();
 
     void setEnv(const std::string& env);
-    void setBody(const std::string& body);
 
     void execScript(void);
     void startPipes(void);
