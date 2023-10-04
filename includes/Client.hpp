@@ -44,6 +44,7 @@ class Client : public Fd {
     void getMethod(void);
     void postMethod(void);
     void deleteMethod(void);
+    bool isRegister(std::string uri);
 
     void handleDirectory(const std::string& uri);
     void getDirectoryPage(const std::string& uri);

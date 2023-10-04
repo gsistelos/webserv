@@ -68,9 +68,10 @@ void Cgi::execScript(void) {
     close(this->_requestFd[0]);
     close(this->_responseFd[1]);
 
-    // Send request to CGI
+    // Send request to CGI (POST method)
 
-    this->sendBody();
+    if (!this->_body.empty())
+        this->sendBody();
 }
 
 void Cgi::sendBody(void) {
