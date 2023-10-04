@@ -17,17 +17,6 @@ Client::Client(Server* server) {
 
     WebServ::fds.push_back(this);
     WebServ::pushPollfd(this->_fd);
-
-    // Get client address and port
-
-    char clientIp[INET_ADDRSTRLEN];
-
-    if (inet_ntop(AF_INET, &address.sin_addr, clientIp, INET_ADDRSTRLEN) == NULL)
-        throw Error("inet_ntop");
-
-    int clientPort = ntohs(address.sin_port);
-
-    std::cout << "Accepted client: " << clientIp << ":" << clientPort << " on fd " << this->_fd << std::endl;
 }
 
 Client::~Client() {
