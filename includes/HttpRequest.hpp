@@ -9,6 +9,8 @@ class HttpRequest {
 
     bool ready(void);
     bool empty(void);
+    bool isChunked(void);
+    void unchunkBody(void);
 
     const std::string& getHeader(void) const;
     const std::string& getBody(void) const;
@@ -26,6 +28,7 @@ class HttpRequest {
    private:
     std::string _header;
     std::string _body;
+    bool _chunked;
 
     std::string _method;
     std::string _uri;
