@@ -9,7 +9,6 @@ class HttpRequest {
 
     bool ready(void);
     bool empty(void);
-    bool isChunked(void);
     void unchunkBody(void);
 
     const std::string& getHeader(void) const;

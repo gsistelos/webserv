@@ -10,25 +10,21 @@
 
 #define BUFFER_SIZE 1024  // 2KB
 
-HttpRequest::HttpRequest(void) : _content_length(0) {
+HttpRequest::HttpRequest(void) : _chunked(false), _content_length(0) {
 }
 
 HttpRequest::~HttpRequest() {
 }
 
 bool HttpRequest::ready(void) {
+    if (this->_chunked && this->_body.find("0\r\n\r\n") != std::string::npos) {
+        this->unchunkBody();
+        return true;
+    }
     return this->_body.length() == this->_content_length;
 }
 
-bool HttpRequest::isChunked(void) {
-    return this->_chunked;
-}
-
 bool HttpRequest::empty(void) {
-    // std::cout << "===== HEADER_LEN =====" << std::endl;
-    // std::cout << this->_header.length() << std::endl;
-    // std::cout << this->_header << std::endl;
-    // std::cout << "======================" << std::endl;
     return this->_header.empty();
 }
 
@@ -89,25 +85,23 @@ void HttpRequest::readHeader(int fd) {
     Parser::extractWord(this->_header, this->_method);
     Parser::extractWord(this->_header, this->_uri);
 
-    std::cout << "HEADER" << std::endl;
-    std::cout << "===========================================" << std::endl;
-    std::cout << this->_method << " " << this->_uri;
-    std::cout << this->_header << std::endl;
-    std::cout << "===========================================" << std::endl;
+    // std::cout << "HEADER" << std::endl;
+    // std::cout << "===========================================" << std::endl;
+    // std::cout << this->_method << " " << this->_uri;
+    // std::cout << this->_header << std::endl;
+    // std::cout << "===========================================" << std::endl;
 
     std::string transfer_encoding = this->getHeaderValue("Transfer-Encoding: ");
     if (!transfer_encoding.empty()) {
-        std::cout << "Detectou transfer encoding" << std::endl;
         this->_chunked = true;
+        return;
     }
-    // Caso for chunked, não precisa verificar o content length
-    else {
-        this->_chunked = false;
-        std::string content_length = this->getHeaderValue("Content-Length: ");
-        if (!content_length.empty()) {
-            this->_content_length = std::strtoll(content_length.c_str(), NULL, 10);
-        }
-    }
+    this->_chunked = false;
+    std::string content_length = this->getHeaderValue("Content-Length: ");
+    if (!content_length.empty()) {
+        this->_content_length = std::strtoll(content_length.c_str(), NULL, 10);
+    } else
+        this->_content_length = 0;
 }
 
 void HttpRequest::unchunkBody() {

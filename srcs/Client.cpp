@@ -28,28 +28,19 @@ void Client::handlePollin(int index) {
 
         this->_request.readRequest(this->_fd);
 
-        std::cout << "BODY BEFORE" << std::endl;
-        std::cout << "===========================================" << std::endl;
-        std::cout << this->_request.getBody() << std::endl;
-        std::cout << "===========================================" << std::endl;
+        // std::cout << "BODY BEFORE" << std::endl;
+        // std::cout << "===========================================" << std::endl;
+        // std::cout << this->_request.getBody() << std::endl;
+        // std::cout << "===========================================" << std::endl;
 
-        if (this->_request.isChunked())
-            this->_request.unchunkBody();
-
-        std::cout << "BODY AFTER" << std::endl;
-        std::cout << "===========================================" << std::endl;
-        std::cout << this->_request.getBody() << std::endl;
-        std::cout << "===========================================" << std::endl;
-
-        exit(0);
-
-        // Ira sempre ficar dando falso aqui, pois content-length nao existe qd a request eh chunked
-        // TODO:: temos que verificar se os chunks ainda nao foram lidos, alem de checar a funcao ready
-        // pois se a request for chunked nao ira possuir content-length
         if (!this->_request.ready()) {
-            std::cout << "Request not ready" << std::endl;
             return;
         }
+
+        // std::cout << "BODY AFTER" << std::endl;
+        // std::cout << "===========================================" << std::endl;
+        // std::cout << this->_request.getBody() << std::endl;
+        // std::cout << "===========================================" << std::endl;
 
         if (this->_request.empty()) {
             WebServ::removeIndex(index);
