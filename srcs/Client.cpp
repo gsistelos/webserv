@@ -77,7 +77,7 @@ void Client::handleDirectory(const std::string& uri) {
         return;
     }
 
-    if (this->_server->getAutoindex())
+    if (this->_server->getAutoIndex(uri))
         this->getDirectoryPage(uri);
     else
         this->_response = HttpResponse::pageResponse(403, "default_pages/403.html");
