@@ -188,7 +188,7 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi* cgi = new Cgi("cgi-bin/upload.py", this->_request.getBody(), this->_response);
+    Cgi* cgi = new Cgi("." + this->_request.getUri(), this->_request.getBody(), this->_response);
 
     cgi->setEnv("REQUEST_METHOD=POST");
     cgi->setEnv("TRANSFER_ENCODING=chunked");
