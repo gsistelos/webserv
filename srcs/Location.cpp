@@ -1,4 +1,4 @@
-#include "Config.hpp"
+#include "Location.hpp"
 
 #include <cstdlib>
 #include <iostream>
@@ -6,13 +6,13 @@
 #include "Error.hpp"
 #include "Parser.hpp"
 
-Config::Config(void) : availableMethods(0), autoIndex(false), canUpload(false) {
+Location::Location(void) : allowMethods(0), autoIndex(false), canUpload(false) {
 }
 
-Config::~Config() {
+Location::~Location() {
 }
 
-void Config::configure(std::string& fileContent) {
+void Location::configure(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word != "{")
@@ -25,8 +25,8 @@ void Config::configure(std::string& fileContent) {
         if (word == "}")
             break;
 
-        if (word == "available_methods")
-            this->setAvailableMethods(fileContent);
+        if (word == "allow_methods")
+            this->setAllowMethods(fileContent);
         else if (word == "return")
             this->setRedirect(fileContent);
         else if (word == "alias")
@@ -46,7 +46,7 @@ void Config::configure(std::string& fileContent) {
     }
 }
 
-void Config::setAvailableMethods(std::string& fileContent) {
+void Location::setAllowMethods(std::string& fileContent) {
     while (1) {
         std::string word;
         Parser::extractWord(fileContent, word);
@@ -56,17 +56,17 @@ void Config::setAvailableMethods(std::string& fileContent) {
             break;
 
         if (word == "GET")
-            this->availableMethods |= GET;
+            this->allowMethods |= GET;
         else if (word == "POST")
-            this->availableMethods |= POST;
+            this->allowMethods |= POST;
         else if (word == "DELETE")
-            this->availableMethods |= DELETE;
+            this->allowMethods |= DELETE;
         else
             throw Error("Invalid available_methods");
     }
 }
 
-void Config::setRedirect(std::string& fileContent) {
+void Location::setRedirect(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
@@ -79,7 +79,7 @@ void Config::setRedirect(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setAlias(std::string& fileContent) {
+void Location::setAlias(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
@@ -92,7 +92,7 @@ void Config::setAlias(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setAutoIndex(std::string& fileContent) {
+void Location::setAutoIndex(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
 
@@ -108,7 +108,7 @@ void Config::setAutoIndex(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setIndex(std::string& fileContent) {
+void Location::setIndex(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
@@ -121,7 +121,7 @@ void Config::setIndex(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setCgiExtensions(std::string& fileContent) {
+void Location::setCgiExtensions(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
@@ -134,7 +134,7 @@ void Config::setCgiExtensions(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setCanUpload(std::string& fileContent) {
+void Location::setCanUpload(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
 
@@ -150,7 +150,7 @@ void Config::setCanUpload(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Config::setUploadPath(std::string& fileContent) {
+void Location::setUploadPath(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())

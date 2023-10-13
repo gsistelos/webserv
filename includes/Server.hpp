@@ -10,9 +10,9 @@
 #include <string>
 
 #include "Client.hpp"
-#include "Config.hpp"
 #include "Error.hpp"
 #include "Fd.hpp"
+#include "Location.hpp"
 #include "Parser.hpp"
 #include "WebServ.hpp"
 
@@ -43,7 +43,7 @@ class Server : public Fd {
     std::string _root;
     std::string _serverName;
 
-    std::map<std::string, Config> _route;
+    std::map<std::string, Location> _locations;
 
     void configure(std::string& fileContent);
 

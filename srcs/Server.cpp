@@ -63,17 +63,17 @@ const std::string& Server::getServerName(void) {
 }
 
 bool Server::getAutoIndex(const std::string& uri) const {
-    if (this->_route.count(uri) == 0)
+    if (this->_locations.count(uri) == 0)
         return false;
 
-    return this->_route.at(uri).autoIndex;
+    return this->_locations.at(uri).autoIndex;
 }
 
 const std::string* Server::getRedirect(const std::string& uri) const {
-    if (this->_route.count(uri) == 0)
+    if (this->_locations.count(uri) == 0)
         return NULL;
 
-    return &this->_route.at(uri).redirect;
+    return &this->_locations.at(uri).redirect;
 }
 
 void Server::handlePollin(int index) {
@@ -225,8 +225,8 @@ void Server::setLocation(std::string& fileContent) {
     if (word[word.length() - 1] != '/')
         word += "/";
 
-    if (this->_route.count(word))
+    if (this->_locations.count(word))
         throw Error("Duplicate location \"" + word + "\"");
 
-    this->_route[word].configure(fileContent);
+    this->_locations[word].configure(fileContent);
 }
