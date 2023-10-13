@@ -191,7 +191,6 @@ void Client::postMethod(void) {
     Cgi* cgi = new Cgi("." + this->_request.getUri(), this->_request.getBody(), this->_response);
 
     cgi->setEnv("REQUEST_METHOD=POST");
-    cgi->setEnv("TRANSFER_ENCODING=chunked");
     cgi->setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
     cgi->setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
     cgi->execScript();
