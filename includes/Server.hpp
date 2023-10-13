@@ -10,9 +10,9 @@
 #include <string>
 
 #include "Client.hpp"
-#include "Config.hpp"
 #include "Error.hpp"
 #include "Fd.hpp"
+#include "Location.hpp"
 #include "Parser.hpp"
 #include "WebServ.hpp"
 
@@ -25,14 +25,32 @@ class Server : public Fd {
     Server(std::string& fileContent);
     ~Server();
 
-    const std::string& getRoot(void);
+    const std::string& getErrorPage(int errorCode);
     size_t getMaxBodySize(void);
-    bool getAutoindex(void);
-    const std::string* getRedirect(const std::string& uri);
+    const std::string& getRoot(void);
+    const std::string& getServerName(void);
+
+    bool getAutoIndex(const std::string& uri) const;
+    const std::string* getRedirect(const std::string& uri) const;
 
     void handlePollin(int index);
     void handlePollout(void);
 
    private:
-    Config _config;
+    std::map<int, std::string> _errorPages;
+    size_t _maxBodySize;
+    int _port;
+    std::string _root;
+    std::string _serverName;
+
+    std::map<std::string, Location> _locations;
+
+    void configure(std::string& fileContent);
+
+    void setErrorPage(std::string& fileContent);
+    void setMaxBodySize(std::string& fileContent);
+    void setListen(std::string& fileContent);
+    void setRoot(std::string& fileContent);
+    void setServerName(std::string& fileContent);
+    void setLocation(std::string& fileContent);
 };
