@@ -30,6 +30,7 @@ class Server : public Fd {
     const std::string& getRoot(void);
     const std::string& getServerName(void);
 
+    int getAllowMethods(const std::string& uri) const;
     bool getAutoIndex(const std::string& uri) const;
     const std::string* getRedirect(const std::string& uri) const;
 

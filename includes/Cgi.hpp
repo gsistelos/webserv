@@ -30,6 +30,7 @@ class Cgi : public Fd {
    private:
     std::vector<char*> _argv;
     std::vector<char*> _env;
+    pid_t _pid;
     int _requestFd[2];
     int _responseFd[2];
 

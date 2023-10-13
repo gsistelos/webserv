@@ -58,6 +58,13 @@ const std::string& Server::getRoot(void) {
     return this->_root;
 }
 
+int Server::getAllowMethods(const std::string& uri) const {
+    if (this->_locations.count(uri) == 0)
+        return 0;
+
+    return this->_locations.at(uri).allowMethods;
+}
+
 const std::string& Server::getServerName(void) {
     return this->_serverName;
 }

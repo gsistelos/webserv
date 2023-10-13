@@ -147,8 +147,9 @@ bool Client::isRegister(std::string uri) {
     std::string path = uri.substr(0, uri.find("?"));
 
     if (path == "/cgi-bin/register.py") {
+        std::string file_path = this->_server->getRoot() + path;
         std::string query = uri.substr(uri.find("?") + 1, uri.length());
-        Cgi* cgi = new Cgi("cgi-bin/register.py", this->_request.getBody(), this->_response);
+        Cgi* cgi = new Cgi(file_path, this->_request.getBody(), this->_response);
         cgi->setEnv("REQUEST_METHOD=GET");
         cgi->setEnv("QUERY_STRING=" + query);
         cgi->execScript();
@@ -188,12 +189,39 @@ void Client::getMethod(void) {
 }
 
 void Client::postMethod(void) {
-    Cgi* cgi = new Cgi("." + this->_request.getUri(), this->_request.getBody(), this->_response);
+    std::string location;
+    std::string uri = this->_request.getUri();
+    std::string file_path = this->_server->getRoot() + this->_request.getUri();
 
-    cgi->setEnv("REQUEST_METHOD=POST");
-    cgi->setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
-    cgi->setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
-    cgi->execScript();
+    struct stat uriStat;
+    if (stat(file_path.c_str(), &uriStat)) {
+        if (errno == ENOENT)
+            this->_response = HttpResponse::pageResponse(404, "default_pages/404.html");
+        else
+            this->_response = HttpResponse::internalServerError;
+        return;
+    }
+
+    if (S_ISDIR(uriStat.st_mode)) {
+        if (uri[uri.length() - 1] != '/') {
+            location = uri + "/";
+        } else {
+            location = uri;
+        }
+    } else if (S_ISREG(uriStat.st_mode)) {
+        location = uri.substr(0, uri.find_last_of("/") + 1);
+    }
+    // std::cout << "Location: " << location << std::endl;
+
+    if (this->_server->getAllowMethods(location) & POST) {
+        Cgi* cgi = new Cgi(file_path, this->_request.getBody(), this->_response);
+        cgi->setEnv("REQUEST_METHOD=POST");
+        cgi->setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
+        cgi->setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
+        cgi->execScript();
+    } else {
+        this->_response = HttpResponse::pageResponse(405, "default_pages/405.html");
+    }
 }
 
 void Client::deleteMethod(void) {
