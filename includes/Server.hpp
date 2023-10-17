@@ -30,9 +30,10 @@ class Server : public Fd {
     const std::string& getRoot(void);
     const std::string& getServerName(void);
 
-    int getAllowMethods(const std::string& uri) const;
-    bool getAutoIndex(const std::string& uri) const;
-    const std::string* getRedirect(const std::string& uri) const;
+    std::string getRoot(const std::string& uri) const;
+    bool isAllowedMethod(const std::string& location, const std::string& method) const;
+    bool getAutoIndex(const std::string& location) const;
+    const std::string* getRedirect(std::string& uri) const;
 
     void handlePollin(int index);
     void handlePollout(void);

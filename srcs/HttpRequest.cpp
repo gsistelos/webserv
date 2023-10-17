@@ -36,8 +36,24 @@ const std::string& HttpRequest::getBody(void) const {
     return this->_body;
 }
 
+const std::string& HttpRequest::getCgiFile(void) const {
+    return this->_cgi_file;
+}
+
+struct stat& HttpRequest::getFileStat(void) {
+    return this->_file_stat;
+}
+
 const std::string& HttpRequest::getMethod(void) const {
     return this->_method;
+}
+
+const std::string& HttpRequest::getQuery(void) const {
+    return this->_query;
+}
+
+const std::string& HttpRequest::getFile(void) const {
+    return this->_file;
 }
 
 const std::string& HttpRequest::getUri(void) const {
@@ -55,6 +71,21 @@ std::string HttpRequest::getHeaderValue(const std::string& key) const {
         return this->_header.substr(header_start);
 
     return this->_header.substr(header_start, header_end - header_start);
+}
+
+void HttpRequest::setFile(const std::string& root, const std::string& file) {
+    this->_file = root + file;
+
+    if (this->_file == "./root/cgi-bin/form_upload.py") {
+        this->_cgi_file = "upload";
+    } else {
+        std::string register_cgi_file = this->_file.substr(0, this->_file.find("?"));
+        if (register_cgi_file == "./root/cgi-bin/register.py") {
+            this->_cgi_file = "register";
+            this->_query = this->_file.substr(this->_file.find("?") + 1, this->_file.length());
+            this->_file = register_cgi_file;
+        }
+    }
 }
 
 void HttpRequest::readRequest(int fd) {
@@ -155,4 +186,5 @@ void HttpRequest::readBody(int fd) {
 
 void HttpRequest::clear(void) {
     this->_header.clear();
+    this->_cgi_file.clear();
 }

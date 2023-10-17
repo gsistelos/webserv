@@ -58,27 +58,39 @@ const std::string& Server::getRoot(void) {
     return this->_root;
 }
 
-int Server::getAllowMethods(const std::string& uri) const {
-    if (this->_locations.count(uri) == 0)
-        return 0;
-
-    return this->_locations.at(uri).allowMethods;
+bool Server::isAllowedMethod(const std::string& location, const std::string& method) const {
+    if (this->_locations.count(location) == 0)
+        return false;
+    std::vector<std::string> allowMethods = this->_locations.at(location).allowMethods;
+    for (std::vector<std::string>::iterator it = allowMethods.begin(); it != allowMethods.end(); ++it) {
+        if (*it == method)
+            return true;
+    }
+    return false;
 }
 
 const std::string& Server::getServerName(void) {
     return this->_serverName;
 }
 
-bool Server::getAutoIndex(const std::string& uri) const {
-    if (this->_locations.count(uri) == 0)
-        return false;
+std::string Server::getRoot(const std::string& location) const {
+    if (this->_locations.count(location) == 0)
+        return NULL;
 
-    return this->_locations.at(uri).autoIndex;
+    return this->_locations.at(location).root;
 }
 
-const std::string* Server::getRedirect(const std::string& uri) const {
-    if (this->_locations.count(uri) == 0)
+bool Server::getAutoIndex(const std::string& location) const {
+    if (this->_locations.count(location) == 0)
+        return false;
+
+    return this->_locations.at(location).autoIndex;
+}
+
+const std::string* Server::getRedirect(std::string& uri) const {
+    if (this->_locations.count(uri) == 0 || this->_locations.at(uri).redirect.empty()) {
         return NULL;
+    }
 
     return &this->_locations.at(uri).redirect;
 }
@@ -235,5 +247,6 @@ void Server::setLocation(std::string& fileContent) {
     if (this->_locations.count(word))
         throw Error("Duplicate location \"" + word + "\"");
 
+    std::cout << "Location setada: " << word << std::endl;
     this->_locations[word].configure(fileContent);
 }

@@ -10,9 +10,10 @@
 
 class Location {
    public:
-    int allowMethods;
+    std::vector<std::string> allowMethods;
     std::string redirect;
     std::string alias;
+    std::string root;
     bool autoIndex;
     std::string index;
     std::vector<std::string> cgiExtensions;

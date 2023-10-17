@@ -6,7 +6,7 @@
 #include "Error.hpp"
 #include "Parser.hpp"
 
-Location::Location(void) : allowMethods(0), autoIndex(false), canUpload(false) {
+Location::Location(void) : allowMethods(0), root("./"), autoIndex(false), canUpload(false) {
 }
 
 Location::~Location() {
@@ -55,14 +55,10 @@ void Location::setAllowMethods(std::string& fileContent) {
         if (word == ";")
             break;
 
-        if (word == "GET")
-            this->allowMethods |= GET;
-        else if (word == "POST")
-            this->allowMethods |= POST;
-        else if (word == "DELETE")
-            this->allowMethods |= DELETE;
-        else
+        if (word != "GET" && word != "POST" && word != "DELETE")
             throw Error("Invalid available_methods");
+
+        this->allowMethods.push_back(word);
     }
 }
 
