@@ -1,6 +1,6 @@
 NAME		=	webserv
 
-SRCS		=	$(addprefix srcs/,	Cgi.cpp Client.cpp Config.cpp Error.cpp HttpRequest.cpp \
+SRCS		=	$(addprefix srcs/,	Cgi.cpp Client.cpp Location.cpp Error.cpp HttpRequest.cpp \
 									HttpResponse.cpp main.cpp Parser.cpp Server.cpp Fd.cpp \
 									WebServ.cpp)
 

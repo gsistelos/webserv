@@ -42,8 +42,8 @@ void Cgi::startPipes(void) {
 void Cgi::execScript(void) {
     this->_env.push_back(NULL);
 
-    pid_t pid = fork();
-    if (pid == -1) {
+    this->_pid = fork();
+    if (this->_pid == -1) {
         close(this->_requestFd[0]);
         close(this->_requestFd[1]);
         close(this->_responseFd[0]);
@@ -51,7 +51,7 @@ void Cgi::execScript(void) {
         throw Error("fork");
     }
 
-    if (pid == 0) {
+    if (this->_pid == 0) {
         close(this->_requestFd[1]);
         close(this->_responseFd[0]);
 
@@ -93,6 +93,12 @@ void Cgi::handlePollin(int index) {
     if (bytes == -1)
         throw Error("read");
 
-    this->_response = std::string(buffer, bytes);
+    int status;
+    waitpid(this->_pid, &status, 0);
+    if (WEXITSTATUS(status) != 0)
+        this->_response = HttpResponse::pageResponse(502, "default_pages/502.html");
+    else {
+        this->_response = std::string(buffer, bytes);
+    }
     WebServ::removeIndex(index);
 }

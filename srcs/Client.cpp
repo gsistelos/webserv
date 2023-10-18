@@ -27,8 +27,20 @@ void Client::handlePollin(int index) {
         std::cout << "Incoming data from client fd: " << this->_fd << std::endl;
 
         this->_request.readRequest(this->_fd);
-        if (!this->_request.ready())
+
+        // std::cout << "BODY BEFORE" << std::endl;
+        // std::cout << "===========================================" << std::endl;
+        // std::cout << this->_request.getBody() << std::endl;
+        // std::cout << "===========================================" << std::endl;
+
+        if (!this->_request.ready()) {
             return;
+        }
+
+        // std::cout << "BODY AFTER" << std::endl;
+        // std::cout << "===========================================" << std::endl;
+        // std::cout << this->_request.getBody() << std::endl;
+        // std::cout << "===========================================" << std::endl;
 
         if (this->_request.empty()) {
             WebServ::removeIndex(index);
@@ -36,6 +48,10 @@ void Client::handlePollin(int index) {
         }
 
         std::string method = this->_request.getMethod();
+        if (!isValidRequest(method)) {
+            this->_request.clear();
+            return;
+        }
 
         if (method == "GET")
             getMethod();
@@ -55,6 +71,40 @@ void Client::handlePollin(int index) {
     this->_request.clear();
 }
 
+bool Client::isValidRequest(const std::string& method) {
+    std::string uri = this->_request.getUri();
+
+    this->_request.setFile(this->_server->getRoot(), this->_request.getUri());
+    std::string file = this->_request.getFile();
+    std::string cgi_file = this->_request.getCgiFile();
+
+    if ((stat(file.c_str(), &this->_request.getFileStat()) == -1) && cgi_file.empty() && uri != "/redirect/") {
+        if (errno == ENOENT) {
+            this->_response = HttpResponse::pageResponse(404, "default_pages/404.html");
+        } else {
+            this->_response = HttpResponse::internalServerError;
+        }
+        return false;
+    }
+
+    std::string location;
+    struct stat fileStat = this->_request.getFileStat();
+    if (S_ISDIR(fileStat.st_mode)) {
+        if (uri[uri.length() - 1] != '/') {
+            location = uri + "/";
+        } else {
+            location = uri;
+        }
+    } else if (S_ISREG(fileStat.st_mode)) {
+        location = uri.substr(0, uri.find_last_of("/") + 1);
+    }
+    if (!this->_server->isAllowedMethod(location, method)) {
+        this->_response = HttpResponse::pageResponse(405, "default_pages/405.html");
+        return false;
+    }
+    return true;
+}
+
 void Client::handlePollout(void) {
     if (!this->_response.empty()) {
         size_t bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
@@ -64,23 +114,26 @@ void Client::handlePollout(void) {
     }
 }
 
-void Client::handleDirectory(const std::string& uri) {
-    if (uri[uri.length() - 1] != '/') {
+void Client::handleDirectory(const std::string& directory) {
+    std::string file = this->_request.getFile();
+    if (directory[directory.length() - 1] != '/') {
         this->_response = HttpResponse::redirectResponse(this->_request.getUri() + "/");
         return;
     }
 
-    std::string index = uri + "index.html";
+    std::string index = file + "index.html";
 
     if (!access(index.c_str(), F_OK)) {
         this->_response = HttpResponse::pageResponse(200, index);
         return;
     }
 
-    if (this->_server->getAutoindex())
-        this->getDirectoryPage(uri);
-    else
+    if (this->_server->getAutoIndex(this->_request.getUri())) {
+        this->getDirectoryPage(file);
+
+    } else {
         this->_response = HttpResponse::pageResponse(403, "default_pages/403.html");
+    }
 }
 
 void Client::getDirectoryPage(const std::string& uri) {
@@ -131,55 +184,45 @@ void Client::getDirectoryPage(const std::string& uri) {
 
 // HTTP methods
 
-bool Client::isRegister(std::string uri) {
-    std::string path = uri.substr(0, uri.find("?"));
-
-    if (path == "/cgi-bin/register.py") {
-        std::string query = uri.substr(uri.find("?") + 1, uri.length());
-        Cgi* cgi = new Cgi("cgi-bin/register.py", this->_request.getBody(), this->_response);
-        cgi->setEnv("REQUEST_METHOD=GET");
-        cgi->setEnv("QUERY_STRING=" + query);
-        cgi->execScript();
-        return 1;
-    }
-    return 0;
-}
-
 void Client::getMethod(void) {
-    if (this->isRegister(this->_request.getUri()))
+    std::string file = this->_request.getFile();
+
+    if (this->_request.getCgiFile() == "register") {
+        Cgi* cgi = new Cgi(file, this->_request.getBody(), this->_response);
+        cgi->setEnv("REQUEST_METHOD=GET");
+        cgi->setEnv("QUERY_STRING=" + this->_request.getQuery());
+        cgi->execScript();
         return;
+    } else if (this->_request.getCgiFile() == "upload") {
+        this->_response = HttpResponse::pageResponse(204, "default_pages/204.html");
+        return;
+    }
 
-    const std::string* redirect = this->_server->getRedirect(this->_request.getUri());
+    std::string uri = this->_request.getUri();
+    const std::string* redirect = this->_server->getRedirect(uri);
 
-    if (redirect) {
+    if (redirect != NULL) {
         this->_response = HttpResponse::redirectResponse(*redirect);
         return;
     }
 
-    std::string uri = this->_server->getRoot() + this->_request.getUri();
-
-    struct stat uriStat;
-    if (stat(uri.c_str(), &uriStat)) {
-        if (errno == ENOENT)
-            this->_response = HttpResponse::pageResponse(404, "default_pages/404.html");
-        else
-            this->_response = HttpResponse::internalServerError;
-        return;
-    }
-
-    if (S_ISDIR(uriStat.st_mode))
+    struct stat fileStat = this->_request.getFileStat();
+    if (S_ISDIR(fileStat.st_mode)) {
         this->handleDirectory(uri);
-    else if (S_ISREG(uriStat.st_mode))
-        this->_response = HttpResponse::pageResponse(200, uri);
-    else
-        this->_response = HttpResponse::pageResponse(400, "default_pages/400.html");
+
+    } else if (S_ISREG(fileStat.st_mode)) {
+        this->_response = HttpResponse::pageResponse(200, file);
+    }
 }
 
 void Client::postMethod(void) {
-    Cgi* cgi = new Cgi("cgi-bin/upload.py", this->_request.getBody(), this->_response);
-
+    std::string file = this->_request.getFile();
+    if (this->_request.getCgiFile() != "upload") {
+        this->_response = HttpResponse::pageResponse(204, "default_pages/204.html");
+        return;
+    }
+    Cgi* cgi = new Cgi(file, this->_request.getBody(), this->_response);
     cgi->setEnv("REQUEST_METHOD=POST");
-    cgi->setEnv("TRANSFER_ENCODING=chunked");
     cgi->setEnv("CONTENT_TYPE=" + this->_request.getHeaderValue("Content-Type: "));
     cgi->setEnv("CONTENT_LENGTH=" + this->_request.getHeaderValue("Content-Length: "));
     cgi->execScript();
