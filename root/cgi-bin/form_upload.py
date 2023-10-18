@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import os, cgi
+import os, cgi, sys
 
 form = cgi.FieldStorage()
 
@@ -10,22 +10,20 @@ if form_data.filename:
     if not os.path.exists("uploads"):
         os.mkdir("uploads")
 
-    open("uploads/" + form_data.filename, "wb").write(form_data.file.read())
+    file_content = form_data.file.read()
 
-    response = "<html>"
-    response += "<p>File " + form_data.filename + " was uploaded to " + "uploads/" + "</p>"
-    response += "</html>"
+    open("uploads/" + form_data.filename, "wb").write(file_content)
 
-    print("HTTP/1.1 200 OK")
-    print("Content-Length: " + str(len(response)))
-    print()
-    print(response)
+    sys.stdout.buffer.write(b"HTTP/1.1 200 OK\r\n")
+    sys.stdout.buffer.write(b"Content-Length: " + str(len(file_content)).encode("utf-8") + b"\r\n")
+    sys.stdout.buffer.write(b"\r\n")
+    sys.stdout.buffer.write(file_content)
 else:
     response = "<html>"
     response += "<p>No file was uploaded</p>"
     response += "</html>"
 
-    print("HTTP/1.1 400 Bad Request")
-    print("Content-Length: " + str(len(response)))
-    print()
-    print(response)
+    sys.stdout.buffer.write(b"HTTP/1.1 400 Bad Request")
+    sys.stdout.buffer.write(b"Content-Length: " + str(len(response)).encode("utf-8") + b"\r\n")
+    sys.stdout.buffer.write(b"\r\n")
+    sys.stdout.buffer.write(response)

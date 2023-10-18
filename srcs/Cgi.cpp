@@ -2,7 +2,7 @@
 
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024 * 1024  // 1 MB
+#define BUFFER_SIZE 64 * 1024  // 64 KB
 
 Cgi::Cgi(const std::string& path, const std::string& body, std::string& response) : _body(body), _response(response) {
     this->_argv.push_back(strdup(path.c_str()));
@@ -31,6 +31,14 @@ void Cgi::startPipes(void) {
         close(this->_requestFd[0]);
         close(this->_requestFd[1]);
         throw Error("pipe");
+    }
+
+    if (fcntl(this->_responseFd[0], F_SETFL, O_NONBLOCK, FD_CLOEXEC) == -1) {
+        close(this->_requestFd[0]);
+        close(this->_requestFd[1]);
+        close(this->_responseFd[0]);
+        close(this->_responseFd[1]);
+        throw Error("fcntl");
     }
 
     // Fd to be monitored by WebServ class when the cgi finishes
@@ -93,12 +101,17 @@ void Cgi::handlePollin(int index) {
     if (bytes == -1)
         throw Error("read");
 
+    this->_response.append(buffer, bytes);
+
     int status;
-    waitpid(this->_pid, &status, 0);
+    int ret = waitpid(this->_pid, &status, WNOHANG);
+    if (ret == -1)
+        throw Error("waitpid");
+    if (ret == 0)
+        return;
+
     if (WEXITSTATUS(status) != 0)
         this->_response = HttpResponse::pageResponse(502, "default_pages/502.html");
-    else {
-        this->_response = std::string(buffer, bytes);
-    }
+
     WebServ::removeIndex(index);
 }
