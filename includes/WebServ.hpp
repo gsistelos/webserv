@@ -9,9 +9,10 @@
 
 /*
  * WebServ class is the core
- * of the program. It monitors
- * all the pollfds and call
- * servers and clients methods
+ * of the program. It stores and
+ * monitors all the Fds and
+ * pollfds, calling Fds methods
+ * when needed
  **/
 class WebServ {
    public:

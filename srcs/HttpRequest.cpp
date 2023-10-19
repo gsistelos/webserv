@@ -152,7 +152,7 @@ void HttpRequest::unchunkBody() {
         std::string chunkSizeLine = this->_body.substr(pos, crlfPos - pos);
 
         // Transforma o tamanho do chunk de hexadecimal para decimal
-        int chunkSize = std::stoi(chunkSizeLine, nullptr, 16);
+        size_t chunkSize = std::strtol(chunkSizeLine.c_str(), NULL, 16);
 
         // Atualize a posição para apontar para o início dos dados do chunk, apos o CRLF
         pos = crlfPos + 2;

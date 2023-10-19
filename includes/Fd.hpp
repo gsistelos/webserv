@@ -1,16 +1,13 @@
 #pragma once
 
-#include <unistd.h>
-
-#include <iostream>
-
 /*
  * Fd class is the base
  * class for all Fds
- * (Server, Clients & CGI)
+ * (Server, Client & Cgi)
  **/
 class Fd {
    public:
+    Fd(void);
     virtual ~Fd();
 
     int getFd(void);
