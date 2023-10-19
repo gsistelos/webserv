@@ -43,6 +43,7 @@ void Cgi::startPipes(void) {
         throw Error("fcntl");
     }
 
+    // Fd to be closed by Fd class destructor
     this->_fd = this->_responseFd[0];
 
     // Fd to be monitored by WebServ class when the cgi finishes
@@ -103,8 +104,15 @@ void Cgi::handlePollin(int index) {
     if (bytes == -1)
         throw Error("read");
 
+    this->_response.append(buffer, bytes);
+
     int status;
-    waitpid(this->_pid, &status, 0);
+    int ret = waitpid(this->_pid, &status, WNOHANG);
+    if (ret == -1)
+        throw Error("waitpid");
+    if (ret == 0)
+        return;
+
     if (WEXITSTATUS(status) != 0)
         this->_response = HttpResponse::pageResponse(502, "default_pages/502.html");
 
