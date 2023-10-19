@@ -2,7 +2,9 @@
 
 #include <unistd.h>
 
-#define BUFFER_SIZE 1024 * 1024  // 1 MB
+#include "HttpResponse.hpp"
+
+#define BUFFER_SIZE 64 * 1024  // 64 KB
 
 Cgi::Cgi(const std::string& path, const std::string& body, std::string& response) : _body(body), _response(response) {
     this->_argv.push_back(strdup(path.c_str()));
@@ -33,10 +35,18 @@ void Cgi::startPipes(void) {
         throw Error("pipe");
     }
 
-    // Fd to be monitored by WebServ class when the cgi finishes
-    WebServ::pushPollfd(this->_responseFd[0]);
-    // Fd to be closed by Fd class destructor
+    if (fcntl(this->_responseFd[0], F_SETFL, O_NONBLOCK, FD_CLOEXEC) == -1) {
+        close(this->_requestFd[0]);
+        close(this->_requestFd[1]);
+        close(this->_responseFd[0]);
+        close(this->_responseFd[1]);
+        throw Error("fcntl");
+    }
+
     this->_fd = this->_responseFd[0];
+
+    // Fd to be monitored by WebServ class when the cgi finishes
+    WebServ::push_back(this);
 }
 
 void Cgi::execScript(void) {
@@ -97,8 +107,6 @@ void Cgi::handlePollin(int index) {
     waitpid(this->_pid, &status, 0);
     if (WEXITSTATUS(status) != 0)
         this->_response = HttpResponse::pageResponse(502, "default_pages/502.html");
-    else {
-        this->_response = std::string(buffer, bytes);
-    }
-    WebServ::removeIndex(index);
+
+    WebServ::erase(index);
 }

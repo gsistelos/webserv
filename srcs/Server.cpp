@@ -37,8 +37,7 @@ Server::Server(std::string& fileContent) : _maxBodySize(1048576), _port(8080), _
     if (listen(this->_fd, MAX_CLIENTS) == -1)
         throw Error("listen");
 
-    WebServ::fds.push_back(this);
-    WebServ::pushPollfd(this->_fd);
+    WebServ::push_back(this);
 
     std::cout << "Created server: 127.0.0.1:" << this->_port << " on fd " << this->_fd << std::endl;
 }

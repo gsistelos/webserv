@@ -15,8 +15,7 @@ Client::Client(Server* server) {
     if (fcntl(this->_fd, F_SETFL, O_NONBLOCK, FD_CLOEXEC))
         throw Error("fcntl");
 
-    WebServ::fds.push_back(this);
-    WebServ::pushPollfd(this->_fd);
+    WebServ::push_back(this);
 }
 
 Client::~Client() {
@@ -43,7 +42,7 @@ void Client::handlePollin(int index) {
         // std::cout << "===========================================" << std::endl;
 
         if (this->_request.empty()) {
-            WebServ::removeIndex(index);
+            WebServ::erase(index);
             return;
         }
 
