@@ -1,8 +1,20 @@
 #include "Server.hpp"
 
+#include <fcntl.h>
+#include <netinet/in.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+
+#include "Client.hpp"
+#include "Error.hpp"
+#include "Parser.hpp"
+#include "WebServ.hpp"
+
 #define MAX_CLIENTS 128
 
-Server::Server(std::string& fileContent) : _maxBodySize(1048576), _port(8080), _root("./") {
+Server::Server(std::string& fileContent) : _maxBodySize(1048576) /* 1MB */, _port(8080), _root("./") {
     this->configure(fileContent);
 
     // Create socket and set to non-block
@@ -20,11 +32,9 @@ Server::Server(std::string& fileContent) : _maxBodySize(1048576), _port(8080), _
         throw Error("fcntl");
 
     struct sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));
+    bzero(&address, sizeof(address));
 
     // Bind server socket to address and port
-
-    std::cout << this->_port << std::endl;
 
     address.sin_family = AF_INET;
     address.sin_port = htons(this->_port);
@@ -45,66 +55,55 @@ Server::Server(std::string& fileContent) : _maxBodySize(1048576), _port(8080), _
 Server::~Server() {
 }
 
-const std::string& Server::getErrorPage(int errorCode) {
-    return this->_errorPages[errorCode];
+const std::string* Server::getErrorPage(int errorCode) const {
+    if (this->_errorPages.count(errorCode) == 0)
+        return NULL;
+    return &this->_errorPages.at(errorCode);
 }
 
-size_t Server::getMaxBodySize(void) {
+size_t Server::getMaxBodySize(void) const {
     return this->_maxBodySize;
 }
 
-const std::string& Server::getRoot(void) {
+const std::string& Server::getRoot(void) const {
     return this->_root;
 }
 
-bool Server::isAllowedMethod(const std::string& location, const std::string& method) const {
-    if (this->_locations.count(location) == 0)
-        return false;
-    std::vector<std::string> allowMethods = this->_locations.at(location).allowMethods;
-    for (std::vector<std::string>::iterator it = allowMethods.begin(); it != allowMethods.end(); ++it) {
-        if (*it == method)
-            return true;
-    }
-    return false;
-}
-
-const std::string& Server::getServerName(void) {
-    return this->_serverName;
-}
-
-std::string Server::getRoot(const std::string& location) const {
-    if (this->_locations.count(location) == 0)
+const std::string* Server::getServerName(void) const {
+    if (this->_serverName.empty())
         return NULL;
-
-    return this->_locations.at(location).root;
+    return &this->_serverName;
 }
 
-bool Server::getAutoIndex(const std::string& location) const {
-    if (this->_locations.count(location) == 0)
-        return false;
+const Location* Server::getLocation(std::string uri) const {
+    while (1) {
+        if (this->_locations.count(uri) != 0)
+            return &this->_locations.at(uri);
 
-    return this->_locations.at(location).autoIndex;
-}
-
-const std::string* Server::getRedirect(std::string& uri) const {
-    if (this->_locations.count(uri) == 0 || this->_locations.at(uri).redirect.empty()) {
-        return NULL;
+        if (uri[uri.length() - 1] == '/')
+            uri.erase(uri.length() - 1);
+        else {
+            size_t pos = uri.find_last_of('/');
+            if (pos == std::string::npos)
+                return NULL;
+            uri.erase(pos + 1);
+        }
     }
-
-    return &this->_locations.at(uri).redirect;
 }
 
 void Server::handlePollin(int index) {
     (void)index;
 
     try {
-        new Client(this);
+        new Client(*this);
     } catch (const std::exception& e) {
         std::cerr << "webserv: " << e.what() << std::endl;
     }
 }
 
-void Server::handlePollout(void){};
+void Server::handlePollout(int index) {
+    (void)index;
+}
 
 void Server::configure(std::string& fileContent) {
     std::string word;
@@ -155,6 +154,9 @@ void Server::setErrorPage(std::string& fileContent) {
     if (word.empty())
         throw Error("Unexpected end of file");
 
+    if (this->_errorPages.count(errorCode) != 0)
+        throw Error("Duplicated error code");
+
     this->_errorPages[errorCode] = word;
 
     Parser::extractWord(fileContent, word);
@@ -195,6 +197,11 @@ void Server::setListen(std::string& fileContent) {
     if (word.empty())
         throw Error("Unexpected end of file");
 
+    for (size_t i = 0; i < word.length(); i++) {
+        if (std::isdigit(word[i]) == false)
+            throw Error("Invalid server port");
+    }
+
     this->_port = std::atoi(word.c_str());
 
     if (this->_port < 0 || this->_port > 65535)
@@ -210,6 +217,8 @@ void Server::setRoot(std::string& fileContent) {
     Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
+    if (word == ";" || word == "{" || word == "}")
+        throw Error("Expected a root");
 
     if (word[0] != '.' && word[0] != '/')
         word.insert(0, "./");
@@ -226,6 +235,8 @@ void Server::setServerName(std::string& fileContent) {
     Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
+    if (word == ";" || word == "{" || word == "}")
+        throw Error("Expected a server name");
 
     this->_serverName = word;
 
@@ -239,13 +250,11 @@ void Server::setLocation(std::string& fileContent) {
     Parser::extractWord(fileContent, word);
     if (word.empty())
         throw Error("Unexpected end of file");
-
-    if (word[word.length() - 1] != '/')
-        word += "/";
+    if (word == ";" || word == "{" || word == "}")
+        throw Error("Expected a location");
 
     if (this->_locations.count(word))
-        throw Error("Duplicate location \"" + word + "\"");
+        throw Error("Duplicated location \"" + word + "\"");
 
-    std::cout << "Location setada: " << word << std::endl;
     this->_locations[word].configure(fileContent);
 }

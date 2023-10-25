@@ -1,35 +1,37 @@
 #pragma once
 
-#include <map>
 #include <string>
-#include <vector>
-
-#define GET 0x01
-#define POST 0x02
-#define DELETE 0x04
 
 class Location {
    public:
-    std::vector<std::string> allowMethods;
-    std::string redirect;
-    std::string alias;
-    std::string root;
-    bool autoIndex;
-    std::string index;
-    std::vector<std::string> cgiExtensions;
-    bool canUpload;
-    std::string uploadPath;
-
     Location(void);
     ~Location();
+
+    bool isMethodAllowed(const std::string& method) const;
+    const std::string* getRedirect(void) const;
+    const std::string* getAlias(void) const;
+    bool getAutoindex(void) const;
+    const std::string& getIndex(void) const;
+    bool isCgiExtension(const std::string& filename) const;
+    bool getCanUpload(void) const;
+    const std::string& getUploadPath(void) const;
 
     void configure(std::string& fileContent);
 
    private:
+    std::string allowedMethods;
+    std::string redirect;
+    std::string alias;
+    bool autoindex;
+    std::string index;
+    std::string cgiExtensions;
+    bool canUpload;
+    std::string uploadPath;
+
     void setAllowMethods(std::string& fileContent);
     void setRedirect(std::string& fileContent);
     void setAlias(std::string& fileContent);
-    void setAutoIndex(std::string& fileContent);
+    void setAutoindex(std::string& fileContent);
     void setIndex(std::string& fileContent);
     void setCgiExtensions(std::string& fileContent);
     void setCanUpload(std::string& fileContent);

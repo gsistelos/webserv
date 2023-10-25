@@ -2,6 +2,10 @@
 
 #include <signal.h>
 
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+
 #include "Error.hpp"
 #include "Parser.hpp"
 #include "Server.hpp"
@@ -96,7 +100,7 @@ void WebServ::start(void) {
                 if (WebServ::pollfds[i].revents & POLLIN)
                     WebServ::fds[i]->handlePollin(i);
                 else if (WebServ::pollfds[i].revents & POLLOUT)
-                    WebServ::fds[i]->handlePollout();
+                    WebServ::fds[i]->handlePollout(i);
             } catch (const std::exception& e) {
                 std::cerr << "webserv: " << e.what() << std::endl;
             }

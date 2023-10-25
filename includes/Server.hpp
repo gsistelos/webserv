@@ -1,20 +1,9 @@
 #pragma once
 
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <poll.h>
+#include <map>
 
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <string>
-
-#include "Client.hpp"
-#include "Error.hpp"
 #include "Fd.hpp"
 #include "Location.hpp"
-#include "Parser.hpp"
-#include "WebServ.hpp"
 
 /*
  * Server class store configurations
@@ -25,18 +14,14 @@ class Server : public Fd {
     Server(std::string& fileContent);
     ~Server();
 
-    const std::string& getErrorPage(int errorCode);
-    size_t getMaxBodySize(void);
-    const std::string& getRoot(void);
-    const std::string& getServerName(void);
-
-    std::string getRoot(const std::string& uri) const;
-    bool isAllowedMethod(const std::string& location, const std::string& method) const;
-    bool getAutoIndex(const std::string& location) const;
-    const std::string* getRedirect(std::string& uri) const;
+    const std::string* getErrorPage(int errorCode) const;
+    size_t getMaxBodySize(void) const;
+    const std::string& getRoot(void) const;
+    const std::string* getServerName(void) const;
+    const Location* getLocation(std::string uri) const;
 
     void handlePollin(int index);
-    void handlePollout(void);
+    void handlePollout(int index);
 
    private:
     std::map<int, std::string> _errorPages;
@@ -44,7 +29,6 @@ class Server : public Fd {
     int _port;
     std::string _root;
     std::string _serverName;
-
     std::map<std::string, Location> _locations;
 
     void configure(std::string& fileContent);

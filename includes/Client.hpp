@@ -1,28 +1,7 @@
 #pragma once
 
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <map>
-#include <sstream>
-#include <string>
-
-#include "Cgi.hpp"
-#include "Error.hpp"
-#include "Fd.hpp"
-#include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
-#include "Parser.hpp"
 #include "Server.hpp"
-#include "WebServ.hpp"
-
-class Server;
 
 /*
  * Client class handles
@@ -30,22 +9,20 @@ class Server;
  **/
 class Client : public Fd {
    public:
-    Client(Server* server);
+    Client(Server& server);
     ~Client();
 
     void handlePollin(int index);
-    void handlePollout(void);
+    void handlePollout(int index);
 
    private:
-    Server* _server;
+    Server& _server;
     HttpRequest _request;
-    std::string _response;
+    HttpResponse _response;
 
-    void getMethod(void);
-    void postMethod(void);
-    void deleteMethod(void);
-    bool isValidRequest(const std::string& method);
+    std::string _path;
 
-    void handleDirectory(const std::string& location);
-    void getDirectoryPage(const std::string& uri);
+    int parseRequest(const std::string& uri);
+
+    void error(int statusCode);
 };

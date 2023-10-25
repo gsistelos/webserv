@@ -2,6 +2,10 @@
 
 import os, cgi, sys
 
+# body = sys.stdin.buffer.read()
+
+# print("CGI BODY: ", body.decode('utf-8'), file=sys.stderr)
+
 form = cgi.FieldStorage()
 
 form_data = form["filename"]

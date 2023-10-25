@@ -12,7 +12,7 @@ class Fd {
 
     int getFd(void);
     virtual void handlePollin(int index) = 0;
-    virtual void handlePollout(void) = 0;
+    virtual void handlePollout(int index) = 0;
 
    protected:
     int _fd;
