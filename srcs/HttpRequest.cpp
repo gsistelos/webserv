@@ -39,6 +39,10 @@ const std::string& HttpRequest::getBody(void) const {
     return this->_body;
 }
 
+const std::string& HttpRequest::getQuery(void) const {
+    return this->_query;
+}
+
 const std::string& HttpRequest::getMethod(void) const {
     return this->_method;
 }
@@ -99,6 +103,10 @@ void HttpRequest::readHeader(int fd) {
     Parser::extractWord(this->_header, this->_method);
     Parser::extractWord(this->_header, this->_uri);
 
+    this->_query = this->_uri.substr(this->_uri.find("?") + 1);
+    this->_uri = this->_uri.substr(0, this->_uri.find("?"));
+    std::cout << "Uri: " << this->_uri << std::endl;
+    std::cout << "Query: " << this->_query << std::endl;
     size_t pos = this->_header.find("Transfer-Encoding: chunked");
     if (pos != std::string::npos) {
         this->_isChunked = true;

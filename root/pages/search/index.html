@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap" rel="stylesheet">
-    <title>Register</title>
+    <title>Search</title>
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
@@ -15,19 +15,18 @@
     <div id="container">
         <nav class="menu">
             <a href="/pages/">Home</a>
-            <a href="/pages/upload/">Join our team</a>
-            <a href="/pages/register/">Register</a>
+            <a href="/pages/upload/">Upload</a>
+            <a href="/pages/search/">Search</a>
             <a href="/redirect/">Redirect</a>
         </nav>
         <div class="content">
-            <form action="../../cgi-bin/register.py" method="get">
+            <form action="../../cgi-bin/search.py" method="get">
                 <div class="description">
-                    <h2>Register your data!</h2>
-                    <span>Fill the inputs below</span>
+                    <h2>Search and get your uploaded file!</h2>
+                    <span>Insert the filename below</span>
                 </div>
-                <input placeholder="First Name" class="input" type="text" name="first_name">
-                <input placeholder="Last Name" class="input" type="text" name="last_name">
-                <input class="button" type="submit" value="Register">
+                <input placeholder="Filename" class="input" type="text" name="filename">
+                <input class="button" type="submit" value="Search">
             </form>
         </div>
     </div>

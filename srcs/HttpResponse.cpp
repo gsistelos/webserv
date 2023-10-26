@@ -146,10 +146,13 @@ void HttpResponse::error(int statusCode) {
 void HttpResponse::cgi(const std::string& path, const HttpRequest& request) {
     try {
         Cgi* cgi = new Cgi(this->_response);
-
         cgi->setEnv("REQUEST_METHOD=" + request.getMethod());
-        cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type: "));
-        cgi->setEnv("CONTENT_LENGTH=" + request.getHeaderValue("Content-Length: "));
+        if (request.getBody() != "") {
+            std::cout << "Setou content type e content length" << std::endl;
+            cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type: "));
+            cgi->setEnv("CONTENT_LENGTH=" + request.getHeaderValue("Content-Length: "));
+        }
+        cgi->setEnv("QUERY_STRING=" + request.getQuery());
         cgi->exec(path, request.getBody());
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;

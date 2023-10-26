@@ -15,6 +15,7 @@ class HttpRequest {
     const std::string& getBody(void) const;
     const std::string& getMethod(void) const;
     const std::string& getUri(void) const;
+    const std::string& getQuery(void) const;
     std::string getHeaderValue(const std::string& key) const;
 
     void setUri(const std::string& uri);
@@ -24,6 +25,7 @@ class HttpRequest {
    private:
     std::string _header;
     std::string _body;
+    std::string _query;
 
     std::string _method;
     std::string _uri;
