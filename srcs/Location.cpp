@@ -11,6 +11,10 @@ Location::Location(void) : autoindex(false), index("index.html"), canUpload(fals
 Location::~Location() {
 }
 
+const std::string& Location::getUri(void) const {
+    return this->uri;
+}
+
 bool Location::isMethodAllowed(const std::string& method) const {
     if (allowedMethods.empty())
         return true;
@@ -57,7 +61,9 @@ const std::string& Location::getUploadPath(void) const {
     return this->uploadPath;
 }
 
-void Location::configure(std::string& fileContent) {
+void Location::configure(const std::string& uri, std::string& fileContent) {
+    this->uri = uri;
+
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word != "{")

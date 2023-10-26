@@ -7,6 +7,7 @@ class Location {
     Location(void);
     ~Location();
 
+    const std::string& getUri(void) const;
     bool isMethodAllowed(const std::string& method) const;
     const std::string* getRedirect(void) const;
     const std::string* getAlias(void) const;
@@ -16,9 +17,10 @@ class Location {
     bool getCanUpload(void) const;
     const std::string& getUploadPath(void) const;
 
-    void configure(std::string& fileContent);
+    void configure(const std::string& uri, std::string& fileContent);
 
    private:
+    std::string uri;
     std::string allowedMethods;
     std::string redirect;
     std::string alias;

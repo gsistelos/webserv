@@ -69,6 +69,11 @@ void Client::handlePollout(int index) {
 }
 
 int Client::parseRequest(const std::string& uri) {
+    std::string index;
+    std::string path;
+    bool hasAutoindex;
+    bool isCgi;
+
     const Location* location = this->_server.getLocation(uri);
     if (location != NULL) {
         if (location->isMethodAllowed(this->_request.getMethod()) == false) {
@@ -81,9 +86,25 @@ int Client::parseRequest(const std::string& uri) {
             this->_response.redirect(*redirect);
             return 301;
         }
+
+        index = location->getIndex();
+
+        const std::string* alias = location->getAlias();
+        if (alias != NULL)
+            path = *alias + uri.substr(location->getUri().length());
+        else
+            path = this->_server.getRoot() + uri;
+
+        hasAutoindex = location->getAutoindex();
+        isCgi = location->isCgiExtension(path);
+    } else {
+        index = "index.html";
+        path = this->_server.getRoot() + uri;
+        hasAutoindex = false;
+        isCgi = false;
     }
 
-    std::string path = this->_server.getRoot() + uri;
+    std::cout << "path: " << path << std::endl;
 
     struct stat pathStat;
 
@@ -98,10 +119,11 @@ int Client::parseRequest(const std::string& uri) {
             return 301;
         }
 
-        std::string index = uri + (location == NULL ? "index.html" : location->getIndex());
-        int status = this->parseRequest(index);
+        std::string newUri = uri + index;
+        std::cout << "newUri: " << newUri << std::endl;
+        int status = this->parseRequest(newUri);
         if (status == 404) {
-            if (location != NULL && location->getAutoindex() == true) {
+            if (hasAutoindex) {
                 this->_response.directoryList(path);
                 return 200;
             }
@@ -116,9 +138,7 @@ int Client::parseRequest(const std::string& uri) {
         return 403;
     }
 
-    std::cout << path << std::endl;
-
-    if (location && location->isCgiExtension(path) == true) {
+    if (isCgi) {
         this->_response.cgi(path, this->_request);
         return 200;
     }

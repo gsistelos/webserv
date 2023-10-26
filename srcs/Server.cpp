@@ -256,5 +256,5 @@ void Server::setLocation(std::string& fileContent) {
     if (this->_locations.count(word))
         throw Error("Duplicated location \"" + word + "\"");
 
-    this->_locations[word].configure(fileContent);
+    this->_locations[word].configure(word, fileContent);
 }
