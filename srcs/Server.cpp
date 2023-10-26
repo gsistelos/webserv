@@ -202,6 +202,11 @@ void Server::setListen(std::string& fileContent) {
             throw Error("Invalid server port");
     }
 
+    int numbers = std::atoi(word.c_str());
+
+    if (this->_port == numbers)
+        throw Error("Duplicated server port");
+
     this->_port = std::atoi(word.c_str());
 
     if (this->_port < 0 || this->_port > 65535)
