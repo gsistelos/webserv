@@ -65,11 +65,6 @@ Server::Server(std::string& fileContent, const t_listen& hostPort) : _maxBodySiz
 
     address.sin_family = AF_INET;
     address.sin_port = htons(hostPort.port);
-
-    std::cout << "porta: " << hostPort.port << std::endl;
-    std::cout << "inet: " << inet_addr("127.0.01") << std::endl;
-    std::cout << "inet recriada: " << htonl(hostPort.host) << std::endl;
-
     address.sin_addr.s_addr = htonl(hostPort.host);
 
     if (bind(this->_fd, (struct sockaddr*)&address, sizeof(address)) == -1)
@@ -103,16 +98,14 @@ Server::Server(std::string& fileContent) {
             this->setListen(dummy);
     }
 
-    std::cout << "Dummy: " << dummy << std::endl;
-    std::cout << "Original: " << fileContent << std::endl;
-
     for (std::vector<t_listen>::iterator it = this->_hostPort.begin(); it != this->_hostPort.end(); it++) {
-        // LOGICA PODRE GGUEDES KKKKKKKKKKKKKKKKKKK
-        std::string dummy2 = fileContent;
-        std::cout << "Host: " << it->host << std::endl;
-        std::cout << "port: " << it->port << std::endl;
-        std::cout << "File content: " << fileContent << std::endl;
-        new Server(dummy2, *it);
+        dummy = fileContent;
+        std::vector<t_listen>::iterator last = it;
+        // no ultimo listen, vamos apagar o conteudo do bloco daquele server no .conf, pra conseguir ler o proximo bloco de server
+        if (++last == this->_hostPort.end())
+            new Server(fileContent, *it);
+        else
+            new Server(dummy, *it);
     }
 }
 
@@ -186,8 +179,9 @@ void Server::configure(std::string& fileContent) {
             this->setErrorPage(fileContent);
         else if (word == "client_max_body_size")
             this->setMaxBodySize(fileContent);
-        // else if (word == "listen")
-        //     this->setListen(fileContent);
+        else if (word == "listen")
+            // Este listen esta inutil pois ja foi utilizado no primeiro construtor
+            this->setListen(fileContent);
         else if (word == "root")
             this->setRoot(fileContent);
         else if (word == "server_name")
