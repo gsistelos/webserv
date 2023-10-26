@@ -1,6 +1,7 @@
 #include "Cgi.hpp"
 
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/wait.h>
 
 #include <cerrno>
