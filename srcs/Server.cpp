@@ -1,11 +1,13 @@
 #include "Server.hpp"
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 #include "Client.hpp"
 #include "Error.hpp"
@@ -14,10 +16,35 @@
 
 #define MAX_CLIENTS 128
 
-Server::Server(std::string& fileContent) : _maxBodySize(1048576) /* 1MB */, _port(8080), _root("./") {
-    this->configure(fileContent);
+unsigned int strToIp(std::string ip_str) {
+    if (ip_str == "localhost")
+        ip_str = "127.0.0.1";
 
-    // Create socket and set to non-block
+    std::istringstream ss(ip_str);
+    std::string octet_str;
+    std::vector<unsigned int> octets;
+
+    while (std::getline(ss, octet_str, '.')) {
+        unsigned int octet;
+        if (!(std::istringstream(octet_str) >> octet) || octet > 255) {
+            throw Error("Invalid host");
+            return 0;
+        }
+        octets.push_back(octet);
+    }
+
+    if (octets.size() != 4) {
+        throw Error("Invalid host");
+        return 0;
+    }
+
+    unsigned int ip_value = (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
+
+    return ip_value;
+}
+
+Server::Server(std::string& fileContent, const t_listen& hostPort) : _maxBodySize(1048576) /* 1MB */, _root("./") {
+    this->configure(fileContent);
 
     this->_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->_fd == -1)
@@ -37,7 +64,13 @@ Server::Server(std::string& fileContent) : _maxBodySize(1048576) /* 1MB */, _por
     // Bind server socket to address and port
 
     address.sin_family = AF_INET;
-    address.sin_port = htons(this->_port);
+    address.sin_port = htons(hostPort.port);
+
+    std::cout << "porta: " << hostPort.port << std::endl;
+    std::cout << "inet: " << inet_addr("127.0.01") << std::endl;
+    std::cout << "inet recriada: " << htonl(hostPort.host) << std::endl;
+
+    address.sin_addr.s_addr = htonl(hostPort.host);
 
     if (bind(this->_fd, (struct sockaddr*)&address, sizeof(address)) == -1)
         throw Error("bind");
@@ -47,9 +80,40 @@ Server::Server(std::string& fileContent) : _maxBodySize(1048576) /* 1MB */, _por
     if (listen(this->_fd, MAX_CLIENTS) == -1)
         throw Error("listen");
 
+    std::cout << "Created server: 127.0.0.1:" << hostPort.port << " on fd " << this->_fd << std::endl;
+    // devo dar pushback em todos os binds de fd que faco, aqui em baixo, se nao vou monitorar apenas o ultimo listen
     WebServ::push_back(this);
+}
 
-    std::cout << "Created server: 127.0.0.1:" << this->_port << " on fd " << this->_fd << std::endl;
+Server::Server(std::string& fileContent) {
+    std::string dummy = fileContent;
+    std::string word;
+    Parser::extractWord(dummy, word);
+    if (word != "{")
+        throw Error("Expected '{'");
+
+    while (1) {
+        Parser::extractWord(dummy, word);
+        if (word.empty())
+            throw Error("Unexpected end of file");
+        if (word == "}")
+            break;
+
+        if (word == "listen")
+            this->setListen(dummy);
+    }
+
+    std::cout << "Dummy: " << dummy << std::endl;
+    std::cout << "Original: " << fileContent << std::endl;
+
+    for (std::vector<t_listen>::iterator it = this->_hostPort.begin(); it != this->_hostPort.end(); it++) {
+        // LOGICA PODRE GGUEDES KKKKKKKKKKKKKKKKKKK
+        std::string dummy2 = fileContent;
+        std::cout << "Host: " << it->host << std::endl;
+        std::cout << "port: " << it->port << std::endl;
+        std::cout << "File content: " << fileContent << std::endl;
+        new Server(dummy2, *it);
+    }
 }
 
 Server::~Server() {
@@ -122,8 +186,8 @@ void Server::configure(std::string& fileContent) {
             this->setErrorPage(fileContent);
         else if (word == "client_max_body_size")
             this->setMaxBodySize(fileContent);
-        else if (word == "listen")
-            this->setListen(fileContent);
+        // else if (word == "listen")
+        //     this->setListen(fileContent);
         else if (word == "root")
             this->setRoot(fileContent);
         else if (word == "server_name")
@@ -197,20 +261,26 @@ void Server::setListen(std::string& fileContent) {
     if (word.empty())
         throw Error("Unexpected end of file");
 
+    unsigned int host = strToIp(word.substr(0, word.find(':')));
+
+    word = word.substr(word.find(':') + 1, word.length() - word.find(':') - 1);
+    if (word.empty())
+        throw Error("You must provide a port");
+
     for (size_t i = 0; i < word.length(); i++) {
         if (std::isdigit(word[i]) == false)
             throw Error("Invalid server port");
     }
 
-    int numbers = std::atoi(word.c_str());
-
-    if (this->_port == numbers)
-        throw Error("Duplicated server port");
-
-    this->_port = std::atoi(word.c_str());
-
-    if (this->_port < 0 || this->_port > 65535)
+    int port = std::atoi(word.c_str());
+    if (port < 1 || port > 65535)
         throw Error("Invalid server port");
+
+    t_listen hostPort;
+    hostPort.host = host;
+    hostPort.port = port;
+
+    this->_hostPort.push_back(hostPort);
 
     Parser::extractWord(fileContent, word);
     if (word != ";")
