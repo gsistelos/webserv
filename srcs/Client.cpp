@@ -104,8 +104,6 @@ int Client::parseRequest(const std::string& uri) {
         isCgi = false;
     }
 
-    std::cout << "path: " << path << std::endl;
-
     struct stat pathStat;
 
     if (stat(path.c_str(), &pathStat) != 0) {
@@ -114,13 +112,12 @@ int Client::parseRequest(const std::string& uri) {
     }
 
     if (S_ISDIR(pathStat.st_mode) == true) {
-        if (uri[uri.length() - 1] != '/') {
+        if (path[path.length() - 1] != '/') {
             this->_response.redirect(uri + "/");
             return 301;
         }
 
         std::string newUri = uri + index;
-        std::cout << "newUri: " << newUri << std::endl;
         int status = this->parseRequest(newUri);
         if (status == 404) {
             if (hasAutoindex) {
