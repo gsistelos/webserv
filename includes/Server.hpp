@@ -4,6 +4,7 @@
 
 #include "Fd.hpp"
 #include "Location.hpp"
+#include <vector>
 
 typedef struct s_listen {
     unsigned int host;
