@@ -1,5 +1,7 @@
 #include "Parser.hpp"
 
+#include <fstream>
+
 #include "Error.hpp"
 
 void Parser::readFile(const std::string& filename, std::string& buf) {
@@ -12,14 +14,14 @@ void Parser::readFile(const std::string& filename, std::string& buf) {
 
 void Parser::getWord(const std::string& str, std::string& buf, size_t start) {
     while (1) {
-        start = str.find_first_not_of(" \t\n", start);
+        start = str.find_first_not_of(" \t\r\n", start);
         if (start == std::string::npos) {
             buf.clear();
             return;
         }
 
         if (str[start] == '#') {
-            start = str.find_first_of("\n", start);
+            start = str.find_first_of("\r\n", start);
             if (start == std::string::npos) {
                 buf.clear();
                 return;
@@ -33,7 +35,7 @@ void Parser::getWord(const std::string& str, std::string& buf, size_t start) {
         return;
     }
 
-    size_t end = str.find_first_of(" \t\n{};", start);
+    size_t end = str.find_first_of(" \t\r\n{};", start);
     if (end == std::string::npos) {
         buf = str.substr(start);
         return;
@@ -44,7 +46,7 @@ void Parser::getWord(const std::string& str, std::string& buf, size_t start) {
 
 void Parser::extractWord(std::string& str, std::string& buf, size_t start) {
     while (1) {
-        start = str.find_first_not_of(" \t\n", start);
+        start = str.find_first_not_of(" \t\r\n", start);
         if (start == std::string::npos) {
             buf.clear();
             str.clear();
@@ -52,7 +54,7 @@ void Parser::extractWord(std::string& str, std::string& buf, size_t start) {
         }
 
         if (str[start] == '#') {
-            start = str.find_first_of("\n", start);
+            start = str.find_first_of("\r\n", start);
             if (start == std::string::npos) {
                 buf.clear();
                 str.clear();
@@ -68,7 +70,7 @@ void Parser::extractWord(std::string& str, std::string& buf, size_t start) {
         return;
     }
 
-    size_t end = str.find_first_of(" \t\n{};", start);
+    size_t end = str.find_first_of(" \t\r\n{};", start);
     if (end == std::string::npos) {
         buf = str.substr(start);
         str.clear();

@@ -1,20 +1,15 @@
 #pragma once
 
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <poll.h>
+#include <map>
 
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <string>
-
-#include "Client.hpp"
-#include "Error.hpp"
 #include "Fd.hpp"
 #include "Location.hpp"
-#include "Parser.hpp"
-#include "WebServ.hpp"
+#include <vector>
+
+typedef struct s_listen {
+    unsigned int host;
+    int port;
+} t_listen;
 
 /*
  * Server class store configurations
@@ -23,34 +18,30 @@
 class Server : public Fd {
    public:
     Server(std::string& fileContent);
+    Server(std::string& fileContent, const t_listen& listen);
     ~Server();
 
-    const std::string& getErrorPage(int errorCode);
-    size_t getMaxBodySize(void);
-    const std::string& getRoot(void);
-    const std::string& getServerName(void);
-
-    std::string getRoot(const std::string& uri) const;
-    bool isAllowedMethod(const std::string& location, const std::string& method) const;
-    bool getAutoIndex(const std::string& location) const;
-    const std::string* getRedirect(std::string& uri) const;
+    const std::string* getErrorPage(int errorCode) const;
+    size_t getMaxBodySize(void) const;
+    const std::string& getRoot(void) const;
+    const std::string* getServerName(void) const;
+    const Location* getLocation(std::string uri) const;
 
     void handlePollin(int index);
-    void handlePollout(void);
+    void handlePollout(int index);
 
    private:
     std::map<int, std::string> _errorPages;
     size_t _maxBodySize;
-    int _port;
+    std::vector<t_listen> _hostPort;
     std::string _root;
     std::string _serverName;
-
     std::map<std::string, Location> _locations;
 
     void configure(std::string& fileContent);
-
     void setErrorPage(std::string& fileContent);
     void setMaxBodySize(std::string& fileContent);
+    void setHost(std::string& fileContent);
     void setListen(std::string& fileContent);
     void setRoot(std::string& fileContent);
     void setServerName(std::string& fileContent);

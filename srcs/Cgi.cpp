@@ -1,104 +1,154 @@
 #include "Cgi.hpp"
 
-#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
 
-#define BUFFER_SIZE 1024 * 1024  // 1 MB
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
-Cgi::Cgi(const std::string& path, const std::string& body, std::string& response) : _body(body), _response(response) {
-    this->_argv.push_back(strdup(path.c_str()));
-    this->_argv.push_back(NULL);
+#include "Error.hpp"
+#include "HttpResponse.hpp"
+#include "WebServ.hpp"
 
-    WebServ::fds.push_back(this);
-    this->startPipes();
+#define BUFFER_SIZE 64 * 1024  // 64 KB
+
+static void close_pipe(int fd[2]) {
+    close(fd[0]);
+    close(fd[1]);
 }
 
-Cgi::~Cgi(void) {
-    for (std::vector<char*>::iterator it = this->_argv.begin(); it != this->_argv.end(); ++it)
-        free(*it);
+Cgi::Cgi(std::string& response) : _responseFd(-1), _pid(-1), _totalBytes(0), _response(response) {
+}
+
+Cgi::~Cgi() {
     for (std::vector<char*>::iterator it = this->_env.begin(); it != this->_env.end(); ++it)
         free(*it);
+
+    if (this->_responseFd != -1)
+        close(this->_responseFd);
+
+    if (this->_pid > 0)
+        kill(this->_pid, SIGKILL);
 }
 
 void Cgi::setEnv(const std::string& env) {
     this->_env.push_back(strdup(env.c_str()));
 }
 
-void Cgi::startPipes(void) {
-    if (pipe(this->_requestFd) == -1)
+void Cgi::exec(const std::string& path, const std::string& body) {
+    this->_env.push_back(NULL);
+
+    // Setup pipes
+
+    int requestFd[2];
+
+    if (pipe(requestFd) != 0)
         throw Error("pipe");
 
-    if (pipe(this->_responseFd) == -1) {
-        close(this->_requestFd[0]);
-        close(this->_requestFd[1]);
+    int responseFd[2];
+
+    if (pipe(responseFd) != 0) {
+        close_pipe(requestFd);
         throw Error("pipe");
     }
 
-    // Fd to be monitored by WebServ class when the cgi finishes
-    WebServ::pushPollfd(this->_responseFd[0]);
-    // Fd to be closed by Fd class destructor
-    this->_fd = this->_responseFd[0];
-}
+    if (fcntl(requestFd[1], F_SETFL, O_NONBLOCK, FD_CLOEXEC) != 0) {
+        close_pipe(requestFd);
+        close_pipe(responseFd);
+        throw Error("fcntl");
+    }
 
-void Cgi::execScript(void) {
-    this->_env.push_back(NULL);
+    if (fcntl(responseFd[0], F_SETFL, O_NONBLOCK, FD_CLOEXEC) != 0) {
+        close_pipe(requestFd);
+        close_pipe(responseFd);
+        throw Error("fcntl");
+    }
 
     this->_pid = fork();
     if (this->_pid == -1) {
-        close(this->_requestFd[0]);
-        close(this->_requestFd[1]);
-        close(this->_responseFd[0]);
-        close(this->_responseFd[1]);
+        close_pipe(requestFd);
+        close_pipe(responseFd);
         throw Error("fork");
     }
 
     if (this->_pid == 0) {
-        close(this->_requestFd[1]);
-        close(this->_responseFd[0]);
+        close(requestFd[1]);
+        close(responseFd[0]);
 
-        dup2(this->_requestFd[0], STDIN_FILENO);
-        close(this->_requestFd[0]);
+        dup2(requestFd[0], STDIN_FILENO);
+        close(requestFd[0]);
 
-        dup2(this->_responseFd[1], STDOUT_FILENO);
-        close(this->_responseFd[1]);
+        dup2(responseFd[1], STDOUT_FILENO);
+        close(responseFd[1]);
 
-        execve(this->_argv[0], this->_argv.data(), this->_env.data());
-        throw Error("execve");
+        char* argv[2];
+        argv[0] = strdup(path.c_str());
+        argv[1] = NULL;
+
+        execve(argv[0], argv, this->_env.data());
+        free(argv[0]);
+        std::cerr << "webserv: execve: " << path << ": " << strerror(errno) << std::endl;
+        exit(EXIT_FAILURE);
     }
 
-    close(this->_requestFd[0]);
-    close(this->_responseFd[1]);
+    close(requestFd[0]);
+    close(responseFd[1]);
 
-    // Send request to CGI (POST method)
+    this->_fd = requestFd[1];
 
-    if (!this->_body.empty())
-        this->sendBody();
+    this->_responseFd = responseFd[0];
+    this->_body = body;
+
+    WebServ::push_back(this);
 }
 
-void Cgi::sendBody(void) {
-    ssize_t bytes = write(this->_requestFd[1], this->_body.c_str(), this->_body.length());
-    close(this->_requestFd[1]);
-    if (bytes == -1) {
-        close(this->_responseFd[0]);
-        throw Error("write");
+void Cgi::handlePollout(int index) {
+    try {
+        ssize_t bytes = write(this->_fd,
+                              this->_body.c_str() + this->_totalBytes,
+                              this->_body.length() - this->_totalBytes);
+        if (bytes == -1)
+            throw Error("write");
+
+        this->_totalBytes += bytes;
+
+        if (this->_totalBytes != this->_body.length())
+            return;
+
+        close(this->_fd);
+        this->_fd = this->_responseFd;
+        WebServ::pollfds[index].fd = this->_responseFd;
+    } catch (const std::exception& e) {
+        WebServ::erase(index);
+        throw e;
     }
 }
-
-void Cgi::handlePollout(void) {}
 
 void Cgi::handlePollin(int index) {
-    (void)index;
-    char buffer[BUFFER_SIZE];
+    try {
+        char buffer[BUFFER_SIZE];
 
-    ssize_t bytes = read(this->_responseFd[0], buffer, BUFFER_SIZE);
-    if (bytes == -1)
-        throw Error("read");
+        ssize_t bytes = read(this->_fd, buffer, BUFFER_SIZE);
+        if (bytes == -1)
+            throw Error("read");
 
-    int status;
-    waitpid(this->_pid, &status, 0);
-    if (WEXITSTATUS(status) != 0)
-        this->_response = HttpResponse::pageResponse(502, "default_pages/502.html");
-    else {
-        this->_response = std::string(buffer, bytes);
+        this->_response.append(buffer, bytes);
+
+        int status;
+
+        int ready = waitpid(this->_pid, &status, WNOHANG);
+        if (ready == -1)
+            throw Error("waitpid");
+        if (ready == 0)
+            return;
+
+        if (WEXITSTATUS(status) != EXIT_SUCCESS)
+            WebServ::erase(index);
+    } catch (const std::exception& e) {
+        WebServ::erase(index);
+        throw e;
     }
-    WebServ::removeIndex(index);
 }

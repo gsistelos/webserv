@@ -1,14 +1,13 @@
 #include "HttpResponse.hpp"
 
-#include <unistd.h>
+#include <dirent.h>
 
 #include <iostream>
+#include <map>
 #include <sstream>
 
 #include "Error.hpp"
 #include "Parser.hpp"
-
-// Constructor and destructor
 
 HttpResponse::HttpResponse(void) {
 }
@@ -16,123 +15,179 @@ HttpResponse::HttpResponse(void) {
 HttpResponse::~HttpResponse() {
 }
 
-// Static variables
-
-const char HttpResponse::internalServerError[] =
-    "HTTP/1.1 500 Internal Server Error\r\n"
-    "Content-Type: text/html\r\n"
-    "Content-Length: 178\r\n"
-    "\r\n"
-    "<html>\r\n"
-    "    <head>\r\n"
-    "        <title>500 Internal Server Error</title>\r\n"
-    "    </head>\r\n"
-    "    <body>\r\n"
-    "        <h1>500 Internal Server Error</h1>\r\n"
-    "        <p>The server encountered an unexpected condition that prevented it from fulfilling the request</p>\r\n"
-    "        <a href=\"/\">Back to Home</a>\r\n"
-    "    </body>\r\n"
-    "</html>";
-
-// Setters
-
-void HttpResponse::setStatusCode(int statusCode) {
-    this->_statusCode = statusCode;
+bool HttpResponse::ready(void) const {
+    return this->_response.length() != 0;
 }
 
-void HttpResponse::setHeader(const std::string& key, const std::string& value) {
-    this->_headers[key] = value;
+const char* HttpResponse::c_str(void) const {
+    return this->_response.c_str();
 }
 
-void HttpResponse::setHeader(const std::string& key, size_t value) {
-    std::stringstream ss;
-    ss << value;
-
-    this->_headers[key] = ss.str();
+size_t HttpResponse::length(void) const {
+    return this->_response.length();
 }
 
-void HttpResponse::setBody(const std::string& body) {
-    this->_body = body;
+void HttpResponse::clear(void) {
+    this->_response.clear();
 }
 
-// toString
-
-std::string HttpResponse::toString(void) const {
-    std::stringstream ss;
-
-    ss << "HTTP/1.1 " << this->_statusCode << " " << HttpResponse::getStatusMessage(this->_statusCode) << "\r\n";
-
-    for (std::map<std::string, std::string>::const_iterator it = this->_headers.begin(); it != this->_headers.end(); ++it)
-        ss << it->first << ": " << it->second << "\r\n";
-
-    ss << "\r\n";
-
-    if (this->_body.length())
-        ss << this->_body;
-
-    return ss.str();
+void HttpResponse::internalServerError(void) {
+    this->_response =
+        "HTTP/1.1 500 Internal Server Error\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: 306\r\n"
+        "\r\n"
+        "<html>\r\n"
+        "    <head>\r\n"
+        "        <title>500 Internal Server Error</title>\r\n"
+        "    </head>\r\n"
+        "    <body>\r\n"
+        "        <h1>500 Internal Server Error</h1>\r\n"
+        "        <p>The server encountered an unexpected condition that prevented it from fulfilling the request</p>\r\n"
+        "        <a href=\"/\">Back to Home</a>\r\n"
+        "    </body>\r\n"
+        "</html>";
 }
 
-// Static functions
+void HttpResponse::body(int statusCode, const std::string& contentType, const std::string& body) {
+    try {
+        std::stringstream ss;
+        ss << "HTTP/1.1 " << statusCode << " " << HttpResponse::getStatusMessage(statusCode) << "\r\n"
+           << "Content-Type: " << contentType << "\r\n"
+           << "Content-Length: " << body.length() << "\r\n"
+           << "\r\n"
+           << body;
 
-std::string HttpResponse::pageResponse(int status, const std::string& uri) {
-    std::string body;
-    Parser::readFile(uri, body);
-
-    HttpResponse response;
-    response.setStatusCode(status);
-
-    std::string contentType = HttpResponse::contentType(uri);
-    response.setHeader("Content-Type", contentType);
-    if (!contentType.compare(0, 6, "image/"))
-        response.setHeader("Cache-Control", "max-age=3600");
-
-    response.setHeader("Content-Length", body.length());
-    response.setBody(body);
-
-    return response.toString();
+        this->_response = ss.str();
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        this->internalServerError();
+    }
 }
 
-std::string HttpResponse::redirectResponse(const std::string& uri) {
-    HttpResponse response;
-    response.setStatusCode(301);
-    response.setHeader("Content-Length", 0);
-    response.setHeader("Location", uri);
+void HttpResponse::file(int statusCode, const std::string& path) {
+    try {
+        std::string body;
+        Parser::readFile(path, body);
 
-    return response.toString();
+        this->body(statusCode, this->contentType(path), body);
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        this->internalServerError();
+    }
 }
 
-std::string HttpResponse::contentType(const std::string& uri) {
-    size_t start = uri.find_last_of('.');
+void HttpResponse::redirect(const std::string& redirect) {
+    try {
+        std::stringstream ss;
+        ss << "HTTP/1.1 301 Moved Permanently\r\n"
+           << "Content-Length: 0\r\n"
+           << "Location: " << redirect << "\r\n"
+           << "\r\n";
+
+        this->_response = ss.str();
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        this->internalServerError();
+    }
+}
+
+void HttpResponse::directoryList(const std::string& path) {
+    try {
+        std::stringstream body;
+        body << "<html>\r\n"
+             << "<head><title>Index of " << path << "</title></head>\r\n"
+             << "<body>\r\n"
+             << "<h1>Index of " << path << "</h1>\r\n"
+             << "<hr>\r\n"
+             << "<pre>\r\n"
+             << "<a href=\"../\">../</a>\r\n";
+
+        DIR* dir = opendir(path.c_str());
+        if (dir == NULL)
+            throw Error("opendir");
+
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.')
+                continue;
+
+            std::string element = entry->d_name;
+
+            body << "<a href=\"" << element << "\">" << element << "</a>\r\n";
+        }
+
+        body << "</pre>\r\n"
+             << "</hr>\r\n"
+             << "</body>\r\n"
+             << "</html>\r\n";
+
+        if (closedir(dir) == -1)
+            throw Error("closedir");
+
+        this->body(200, "text/html", body.str());
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        this->internalServerError();
+    }
+}
+
+void HttpResponse::error(int statusCode) {
+    try {
+        std::stringstream defaultPage;
+        defaultPage << "default_pages/" << statusCode << ".html";
+
+        this->file(statusCode, defaultPage.str());
+    } catch (const std::exception& e) {
+        this->internalServerError();
+    }
+}
+
+void HttpResponse::cgi(const std::string& path, const HttpRequest& request) {
+    try {
+        Cgi* cgi = new Cgi(this->_response);
+        cgi->setEnv("REQUEST_METHOD=" + request.getMethod());
+        if (request.getBody() != "") {
+            std::cout << "Setou content type e content length" << std::endl;
+            cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type: "));
+            cgi->setEnv("CONTENT_LENGTH=" + request.getHeaderValue("Content-Length: "));
+        }
+        cgi->setEnv("QUERY_STRING=" + request.getQuery());
+        cgi->exec(path, request.getBody());
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        this->internalServerError();
+    }
+}
+
+std::string HttpResponse::contentType(const std::string& filename) {
+    size_t start = filename.find_last_of('.');
     if (start == std::string::npos)
         return "text/plain";
 
-    std::string extension = uri.substr(++start);
+    std::string extension = filename.substr(++start);
 
     return getMimeType(extension);
 }
-
-// Static map getters
 
 const std::string& HttpResponse::getStatusMessage(int statusCode) {
     static std::map<int, std::string> statusMessage;
 
     if (statusMessage.empty()) {
         statusMessage[200] = "OK";
+        statusMessage[204] = "No Content";
         statusMessage[301] = "Moved Permanently";
-        statusMessage[400] = "Bad Request";
         statusMessage[404] = "Not Found";
         statusMessage[403] = "Forbidden";
-        statusMessage[204] = "No Content";
         statusMessage[405] = "Method Not Allowed";
         statusMessage[500] = "Internal Server Error";
         statusMessage[501] = "Not Implemented";
         statusMessage[502] = "Bad Gateway";
     }
 
-    if (!statusMessage.count(statusCode))
-        throw Error("invalid status code");
-    return statusMessage.at(statusCode);
+    if (statusMessage.count(statusCode))
+        return statusMessage.at(statusCode);
+    throw Error("invalid status code");
 }
 
 const std::string& HttpResponse::getMimeType(const std::string& extension) {

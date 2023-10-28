@@ -1,18 +1,69 @@
 #include "Location.hpp"
 
-#include <cstdlib>
 #include <iostream>
 
 #include "Error.hpp"
 #include "Parser.hpp"
 
-Location::Location(void) : allowMethods(0), root("./"), autoIndex(false), canUpload(false) {
+Location::Location(void) : autoindex(false), index("index.html"), canUpload(false), uploadPath(".") {
 }
 
 Location::~Location() {
 }
 
-void Location::configure(std::string& fileContent) {
+const std::string& Location::getUri(void) const {
+    return this->uri;
+}
+
+bool Location::isMethodAllowed(const std::string& method) const {
+    if (allowedMethods.empty())
+        return true;
+    return allowedMethods.find(method) != std::string::npos;
+}
+
+const std::string* Location::getRedirect(void) const {
+    if (this->redirect.empty())
+        return NULL;
+    return &this->redirect;
+}
+
+const std::string* Location::getAlias(void) const {
+    if (this->alias.empty())
+        return NULL;
+    return &this->alias;
+}
+
+bool Location::getAutoindex(void) const {
+    return this->autoindex;
+}
+
+const std::string& Location::getIndex(void) const {
+    return this->index;
+}
+
+bool Location::isCgiExtension(const std::string& filename) const {
+    size_t extensionPos = filename.find_last_of('.');
+    if (extensionPos == std::string::npos)
+        return false;
+
+    std::string extension = filename.substr(extensionPos + 1);
+
+    if (this->cgiExtensions.find(extension) == std::string::npos)
+        return false;
+    return true;
+}
+
+bool Location::getCanUpload(void) const {
+    return this->canUpload;
+}
+
+const std::string& Location::getUploadPath(void) const {
+    return this->uploadPath;
+}
+
+void Location::configure(const std::string& uri, std::string& fileContent) {
+    this->uri = uri;
+
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word != "{")
@@ -32,10 +83,10 @@ void Location::configure(std::string& fileContent) {
         else if (word == "alias")
             this->setAlias(fileContent);
         else if (word == "autoindex")
-            this->setAutoIndex(fileContent);
+            this->setAutoindex(fileContent);
         else if (word == "index")
             this->setIndex(fileContent);
-        else if (word == "cgi_extension")
+        else if (word == "cgi_extensions")
             this->setCgiExtensions(fileContent);
         else if (word == "can_upload")
             this->setCanUpload(fileContent);
@@ -47,6 +98,7 @@ void Location::configure(std::string& fileContent) {
 }
 
 void Location::setAllowMethods(std::string& fileContent) {
+    size_t count = 0;
     while (1) {
         std::string word;
         Parser::extractWord(fileContent, word);
@@ -56,10 +108,15 @@ void Location::setAllowMethods(std::string& fileContent) {
             break;
 
         if (word != "GET" && word != "POST" && word != "DELETE")
-            throw Error("Invalid available_methods");
+            throw Error("Invalid allow_methods");
 
-        this->allowMethods.push_back(word);
+        this->allowedMethods.append(word);
+        this->allowedMethods.push_back(' ');
+        count++;
     }
+
+    if (count == 0)
+        throw Error("Expected a method");
 }
 
 void Location::setRedirect(std::string& fileContent) {
@@ -88,14 +145,14 @@ void Location::setAlias(std::string& fileContent) {
         throw Error("Expected ';'");
 }
 
-void Location::setAutoIndex(std::string& fileContent) {
+void Location::setAutoindex(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
 
     if (word == "on")
-        this->autoIndex = true;
+        this->autoindex = true;
     else if (word == "off")
-        this->autoIndex = false;
+        this->autoindex = false;
     else
         throw Error("Invalid autoindex");
 
@@ -108,7 +165,7 @@ void Location::setIndex(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
-        throw Error("Expected an index route");
+        throw Error("Expected a index");
 
     this->index = word;
 
@@ -118,25 +175,34 @@ void Location::setIndex(std::string& fileContent) {
 }
 
 void Location::setCgiExtensions(std::string& fileContent) {
-    std::string word;
-    Parser::extractWord(fileContent, word);
-    if (word == ";" || word == "{" || word == "}" || word.empty())
-        throw Error("Expected a cgi_extension");
+    size_t count = 0;
+    while (1) {
+        std::string word;
+        Parser::extractWord(fileContent, word);
+        if (word.empty())
+            throw Error("Unexpected end of file");
+        if (word == ";")
+            break;
 
-    this->cgiExtensions.push_back(word);
+        if (word != "py" && word != "php")
+            throw Error("Invalid cgi_extensions");
 
-    Parser::extractWord(fileContent, word);
-    if (word != ";")
-        throw Error("Expected ';'");
+        this->cgiExtensions.append(word);
+        this->cgiExtensions.push_back(' ');
+        count++;
+    }
+
+    if (count == 0)
+        throw Error("Expected a cgi extension");
 }
 
 void Location::setCanUpload(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
 
-    if (word == "on")
+    if (word == "true")
         this->canUpload = true;
-    else if (word == "off")
+    else if (word == "false")
         this->canUpload = false;
     else
         throw Error("Invalid can_upload");
@@ -150,7 +216,7 @@ void Location::setUploadPath(std::string& fileContent) {
     std::string word;
     Parser::extractWord(fileContent, word);
     if (word == ";" || word == "{" || word == "}" || word.empty())
-        throw Error("Expected an upload_path route");
+        throw Error("Expected a upload path");
 
     this->uploadPath = word;
 

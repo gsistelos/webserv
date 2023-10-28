@@ -1,7 +1,6 @@
 #pragma once
 
-#include <fstream>
-#include <vector>
+#include <string>
 
 class Parser {
    public:

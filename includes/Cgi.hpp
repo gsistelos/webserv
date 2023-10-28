@@ -1,39 +1,33 @@
 #pragma once
 
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/wait.h>
+#include <unistd.h>
 
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
 #include <string>
 #include <vector>
 
-#include "Error.hpp"
 #include "Fd.hpp"
-#include "WebServ.hpp"
 
 class Cgi : public Fd {
    public:
-    Cgi(const std::string& path, const std::string& body, std::string& response);
+    Cgi(std::string& response);
     ~Cgi();
 
     void setEnv(const std::string& env);
 
-    void execScript(void);
-    void startPipes(void);
+    void exec(const std::string& path, const std::string& body);
+
     void handlePollin(int index);
-    void handlePollout(void);
-    void sendBody(void);
+    void handlePollout(int index);
 
    private:
-    std::vector<char*> _argv;
     std::vector<char*> _env;
-    pid_t _pid;
-    int _requestFd[2];
-    int _responseFd[2];
 
-    const std::string& _body;
+    int _responseFd;
+
+    pid_t _pid;
+
+    std::string _body;
+    size_t _totalBytes;
+
     std::string& _response;
 };

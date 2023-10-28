@@ -1,6 +1,16 @@
 #include "WebServ.hpp"
 
-std::vector<pollfd> WebServ::pollFds;
+#include <signal.h>
+
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+
+#include "Error.hpp"
+#include "Parser.hpp"
+#include "Server.hpp"
+
+std::vector<pollfd> WebServ::pollfds;
 std::vector<Fd*> WebServ::fds;
 bool WebServ::quit = false;
 
@@ -13,24 +23,23 @@ WebServ::WebServ(void) {
 }
 
 WebServ::~WebServ() {
-    size_t i = WebServ::pollFds.size();
+    size_t i = WebServ::pollfds.size();
     while (i--)
-        WebServ::removeIndex(i);
+        WebServ::erase(i);
 }
 
-/*
-Create pollfd struct and push it to pollFds vector
-*/
-void WebServ::pushPollfd(int fd) {
-    pollfd pollFd;
-    pollFd.fd = fd;
-    pollFd.events = POLLIN | POLLOUT;
-    pollFd.revents = 0;
-    WebServ::pollFds.push_back(pollFd);
+void WebServ::push_back(Fd* fd) {
+    pollfd newPollfd;
+    newPollfd.fd = fd->getFd();
+    newPollfd.events = POLLIN | POLLOUT;
+    newPollfd.revents = 0;
+
+    WebServ::pollfds.push_back(newPollfd);
+    WebServ::fds.push_back(fd);
 }
 
-void WebServ::removeIndex(int index) {
-    WebServ::pollFds.erase(WebServ::pollFds.begin() + index);
+void WebServ::erase(int index) {
+    WebServ::pollfds.erase(WebServ::pollfds.begin() + index);
 
     delete WebServ::fds[index];
     WebServ::fds.erase(WebServ::fds.begin() + index);
@@ -40,11 +49,13 @@ void WebServ::configure(const std::string& configFile) {
     // Set signal to quit program properly
 
     struct sigaction act;
-    act.sa_handler = &sighandler;
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0;
 
-    if (sigaction(SIGINT, &act, NULL) == -1)
+    act.sa_flags = 0;
+    act.sa_handler = &sighandler;
+    if (sigfillset(&act.sa_mask) != 0)
+        throw Error("sigfillset");
+
+    if (sigaction(SIGINT, &act, NULL) != 0)
         throw Error("sigaction");
 
     // Itarate words from config file
@@ -52,22 +63,26 @@ void WebServ::configure(const std::string& configFile) {
     std::string fileContent;
     Parser::readFile(configFile, fileContent);
 
-    while (1) {
-        std::string word;
-        Parser::extractWord(fileContent, word);
-        if (word.empty())
-            break;
+    try {
+        while (1) {
+            std::string word;
+            Parser::extractWord(fileContent, word);
+            if (word.empty())
+                break;
 
-        if (word == "server")
-            new Server(fileContent);
-        else
-            throw Error("Invalid content \"" + word + "\"");
+            if (word == "server")
+                new Server(fileContent);
+            else
+                throw Error("invalid content \"" + word + "\"");
+        }
+    } catch (const std::exception& e) {
+        throw Error(configFile + ": " + e.what());
     }
 }
 
 void WebServ::start(void) {
     while (1) {
-        int ready = poll(WebServ::pollFds.data(), WebServ::pollFds.size(), -1);
+        int ready = poll(WebServ::pollfds.data(), WebServ::pollfds.size(), -1);
 
         if (WebServ::quit == true)
             return;
@@ -79,16 +94,15 @@ void WebServ::start(void) {
 
         // Iterate sockets to check if there's any incoming data
 
-        size_t i = WebServ::pollFds.size();
+        size_t i = WebServ::pollfds.size();
         while (i--) {
             try {
-                if (WebServ::pollFds[i].revents & POLLIN)
+                if (WebServ::pollfds[i].revents & POLLIN)
                     WebServ::fds[i]->handlePollin(i);
-                else if (WebServ::pollFds[i].revents & POLLOUT)
-                    WebServ::fds[i]->handlePollout();
+                else if (WebServ::pollfds[i].revents & POLLOUT)
+                    WebServ::fds[i]->handlePollout(i);
             } catch (const std::exception& e) {
                 std::cerr << "webserv: " << e.what() << std::endl;
-                WebServ::removeIndex(i);
             }
         }
     }
