@@ -17,7 +17,7 @@
 
 #define MAX_CLIENTS 128
 
-Server::Server(t_listen hostPort) {
+Server::Server(t_listen hostPort, ConfigBlock& configBlock) : _hostPort(hostPort), _configDefault(&configBlock) {
     this->_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->_fd == -1)
         throw Error("socket");
@@ -41,45 +41,37 @@ Server::Server(t_listen hostPort) {
     if (fcntl(this->_fd, F_SETFL, O_NONBLOCK) == -1)
         throw Error("fcntl");
 
+    this->configToServerName(configBlock);
     std::cout << "Listening on localhost:" << hostPort.port << std::endl;
+}
+
+void Server::configToServerName(ConfigBlock& configBlock) {
+    std::vector<std::string> serverNames = configBlock.getServerName();
+
+    for (std::vector<std::string>::iterator it = serverNames.begin(); it != serverNames.end(); it++) {
+        std::map<std::string, ConfigBlock*>::iterator found = this->_configs.find(*it);
+
+        if (found != this->_configs.end()) {
+            std::cerr << "Warning: server name " << *it << " already exists, ignoring" << std::endl;
+            continue;
+        }
+
+        this->_configs[*it] = &configBlock;
+    }
 }
 
 Server::~Server() {
 }
 
-const ConfigBlock& Server::getConfig(const std::string& serverName) {
-    if (serverName.empty())
-        return this->_configBlocks[0];
-
-    for (std::vector<ConfigBlock>::iterator it = this->_configBlocks.begin(); it != this->_configBlocks.end(); it++) {
-        std::vector<std::string> serverNames = it->getServerName();
-
-        std::vector<std::string>::iterator found = std::find(serverNames.begin(), serverNames.end(), serverName);
-
-        if (found != serverNames.end())
-            return *it;
-    }
-
-    return this->_configBlocks[0];
+bool Server::operator==(const t_listen& hostPort) const {
+    return (this->_hostPort.host == hostPort.host && this->_hostPort.port == hostPort.port);
 }
 
-void Server::push_back(ConfigBlock& configBlock) {
-    std::vector<std::string> serverNames1 = configBlock.getServerName();
+const ConfigBlock& Server::getConfig(const std::string& serverName) {
+    if (this->_configs.count(serverName) != 0)
+        return *this->_configs[serverName];
 
-    for (std::vector<ConfigBlock>::iterator it = this->_configBlocks.begin(); it != this->_configBlocks.end(); it++) {
-        std::vector<std::string> serverNames2 = it->getServerName();
-
-        for (size_t i = 0; i < serverNames1.size(); i++) {
-            std::vector<std::string>::iterator found = std::find(serverNames2.begin(), serverNames2.end(), serverNames1[i]);
-
-            if (found != serverNames2.end()) {
-                std::cerr << "Warning: server name " << serverNames1[i] << " already exists, ignoring" << std::endl;
-                serverNames1.erase(serverNames1.begin() + i);
-            }
-        }
-    }
-
-    this->_configBlocks.push_back(configBlock);
+    return *this->_configDefault;
 }
 
 void Server::handlePollin(int index) {

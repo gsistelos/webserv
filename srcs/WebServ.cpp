@@ -64,6 +64,7 @@ void WebServ::configure(const std::string& configFile) {
     Parser::readFile(configFile, fileContent);
 
     try {
+        std::vector<ConfigBlock*> configBlocks;
         while (1) {
             std::string word;
             Parser::extractWord(fileContent, word);
@@ -71,13 +72,30 @@ void WebServ::configure(const std::string& configFile) {
                 break;
 
             if (word == "server")
-                new Server(fileContent);
+                configBlocks.push_back(new ConfigBlock(fileContent));
             else
                 throw Error("invalid content \"" + word + "\"");
+        }
+        for (size_t i = 0; i < configBlocks.size(); i++) {
+            const std::vector<t_listen>& listen = configBlocks[i]->getListen();
+            for (size_t j = 0; j < listen.size(); j++) {
+                addConfigToServer(listen[j], *configBlocks[i]);
+            }
         }
     } catch (const std::exception& e) {
         throw Error(configFile + ": " + e.what());
     }
+}
+
+void addConfigToServer(const t_listen& hostPort, ConfigBlock& configBlock) {
+    for (std::vector<Fd*>::iterator it = WebServ::fds.begin(); it != WebServ::fds.end(); it++) {
+        Server* server = dynamic_cast<Server*>(*it);
+        if (*server == hostPort) {
+            server->configToServerName(configBlock);
+            return;
+        }
+    }
+    new Server(hostPort, configBlock);
 }
 
 void WebServ::start(void) {

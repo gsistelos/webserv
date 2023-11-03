@@ -9,15 +9,18 @@
  **/
 class Server : public Fd {
    public:
-    Server(t_listen hostPort);
+    Server(t_listen hostPort, ConfigBlock& configBlock);
     ~Server();
+    bool operator==(const t_listen& hostPort) const;
 
     const ConfigBlock& getConfig(const std::string& serverName);
-    void push_back(ConfigBlock& configBlock);
 
+    void configToServerName(ConfigBlock& configBlock);
     void handlePollin(int index);
     void handlePollout(int index);
 
    private:
-    std::vector<ConfigBlock> _configBlocks;
+    t_listen _hostPort;
+    ConfigBlock* _configDefault;
+    std::map<std::string, ConfigBlock*> _configs;
 };

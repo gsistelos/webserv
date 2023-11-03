@@ -180,6 +180,11 @@ void ConfigBlock::setListen(std::string& fileContent) {
     hostPort.host = host;
     hostPort.port = port;
 
+    for (size_t i = 0; i < this->_listen.size(); i++) {
+        if (this->_listen[i].host == hostPort.host && this->_listen[i].port == hostPort.port)
+            throw Error("Duplicated listen");
+    }
+
     this->_listen.push_back(hostPort);
 
     Parser::extractWord(fileContent, word);
@@ -194,6 +199,11 @@ void ConfigBlock::setServerName(std::string& fileContent) {
         throw Error("Unexpected end of file");
     if (word == ";" || word == "{" || word == "}")
         throw Error("Expected a server name");
+
+    for (std::vector<std::string>::iterator it = this->_serverNames.begin(); it != this->_serverNames.end(); it++) {
+        if (*it == word)
+            throw Error("Duplicated server name");
+    }
 
     this->_serverNames.push_back(word);
 
