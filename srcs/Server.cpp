@@ -42,6 +42,7 @@ Server::Server(t_listen hostPort, ConfigBlock& configBlock) : _hostPort(hostPort
         throw Error("fcntl");
 
     this->configToServerName(configBlock);
+    WebServ::push_back(this);
     std::cout << "Listening on localhost:" << hostPort.port << std::endl;
 }
 
@@ -68,8 +69,11 @@ bool Server::operator==(const t_listen& hostPort) const {
 }
 
 const ConfigBlock& Server::getConfig(const std::string& serverName) {
-    if (this->_configs.count(serverName) != 0)
-        return *this->_configs[serverName];
+    std::string fix = serverName.substr(2, serverName.length() - 2);
+
+    if (this->_configs.count(fix) != 0) {
+        return *this->_configs[fix];
+    }
 
     return *this->_configDefault;
 }

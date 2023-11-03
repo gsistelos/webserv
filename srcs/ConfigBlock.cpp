@@ -40,6 +40,8 @@ ConfigBlock::ConfigBlock(std::string& fileContent) : _maxBodySize(false, 1024 * 
     while (1) {
         Parser::extractWord(fileContent, word);
         if (word.empty())
+            throw Error("Unexpected end of file");
+        if (word == "}")
             break;
 
         if (word == "client_max_body_size")
@@ -248,7 +250,7 @@ void ConfigBlock::setLocation(std::string& fileContent) {
         throw Error("Unexpected end of file");
 
     for (size_t i = 0; i < word.length(); i++) {
-        if (std::isalnum(word[i]) == false && word[i] != '_')
+        if (std::isalnum(word[i]) == false && word[i] != '_' && word[i] != '/' && word[i] != '-' && word[i] != '.')
             throw Error("Invalid location: \"" + word + "\"");
     }
 

@@ -19,6 +19,17 @@ void sighandler(int signo) {
         WebServ::quit = true;
 }
 
+void addConfigToServer(const t_listen& hostPort, ConfigBlock& configBlock) {
+    for (std::vector<Fd*>::iterator it = WebServ::fds.begin(); it != WebServ::fds.end(); it++) {
+        Server* server = dynamic_cast<Server*>(*it);
+        if (*server == hostPort) {
+            server->configToServerName(configBlock);
+            return;
+        }
+    }
+    new Server(hostPort, configBlock);
+}
+
 WebServ::WebServ(void) {
 }
 
@@ -85,17 +96,6 @@ void WebServ::configure(const std::string& configFile) {
     } catch (const std::exception& e) {
         throw Error(configFile + ": " + e.what());
     }
-}
-
-void addConfigToServer(const t_listen& hostPort, ConfigBlock& configBlock) {
-    for (std::vector<Fd*>::iterator it = WebServ::fds.begin(); it != WebServ::fds.end(); it++) {
-        Server* server = dynamic_cast<Server*>(*it);
-        if (*server == hostPort) {
-            server->configToServerName(configBlock);
-            return;
-        }
-    }
-    new Server(hostPort, configBlock);
 }
 
 void WebServ::start(void) {
