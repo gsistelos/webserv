@@ -53,7 +53,7 @@ void Server::configToServerName(ConfigBlock& configBlock) {
         std::map<std::string, ConfigBlock*>::iterator found = this->_configs.find(*it);
 
         if (found != this->_configs.end()) {
-            std::cerr << "Warning: server name " << *it << " already exists, ignoring" << std::endl;
+            std::cerr << "nginx: [warn] conflicting server name \"" << *it << "\" on localhost:" << this->_hostPort.port << ", ignored" << std::endl;
             continue;
         }
 
