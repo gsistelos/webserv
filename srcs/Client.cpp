@@ -8,6 +8,7 @@
 
 #include <iostream>
 
+#include "ConfigBlock.hpp"
 #include "Error.hpp"
 #include "Server.hpp"
 #include "WebServ.hpp"
@@ -74,10 +75,19 @@ int Client::parseRequest(const std::string& uri) {
     bool hasAutoindex;
     bool isCgi;
 
-    const Location* location = this->_server.getLocation(uri);
+    std::string server_name;
+    try {
+        server_name = this->_request.getHeaderValue("Host");
+    } catch (const Error& e) {
+        (void)e;
+    }
+
+    const ConfigBlock& config = this->_server.getConfig(server_name);
+
+    const Location* location = config.getLocation(uri);
     if (location != NULL) {
         if (location->isMethodAllowed(this->_request.getMethod()) == false) {
-            this->error(405);
+            this->error(405, config);
             return 405;
         }
 
@@ -93,13 +103,13 @@ int Client::parseRequest(const std::string& uri) {
         if (alias != NULL)
             path = *alias + uri.substr(location->getUri().length());
         else
-            path = this->_server.getRoot() + uri;
+            path = config.getRoot() + uri;
 
         hasAutoindex = location->getAutoindex();
         isCgi = location->isCgiExtension(path);
     } else {
         index = "index.html";
-        path = this->_server.getRoot() + uri;
+        path = config.getRoot() + uri;
         hasAutoindex = false;
         isCgi = false;
     }
@@ -107,7 +117,7 @@ int Client::parseRequest(const std::string& uri) {
     struct stat pathStat;
 
     if (stat(path.c_str(), &pathStat) != 0) {
-        this->error(404);
+        this->error(404, config);
         return 404;
     }
 
@@ -124,14 +134,14 @@ int Client::parseRequest(const std::string& uri) {
                 this->_response.directoryList(path);
                 return 200;
             }
-            this->error(403);
+            this->error(403, config);
             return 403;
         }
         return status;
     }
 
     if (S_ISREG(pathStat.st_mode) == false) {
-        this->error(403);
+        this->error(403, config);
         return 403;
     }
 
@@ -145,8 +155,8 @@ int Client::parseRequest(const std::string& uri) {
     return 200;
 }
 
-void Client::error(int statusCode) {
-    const std::string* errorPage = this->_server.getErrorPage(statusCode);
+void Client::error(int statusCode, const ConfigBlock& config) {
+    const std::string* errorPage = config.getErrorPage(statusCode);
     if (errorPage == NULL) {
         this->_response.error(statusCode);
         return;

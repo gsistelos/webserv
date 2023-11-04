@@ -1,15 +1,7 @@
 #pragma once
 
-#include <map>
-
+#include "ConfigBlock.hpp"
 #include "Fd.hpp"
-#include "Location.hpp"
-#include <vector>
-
-typedef struct s_listen {
-    unsigned int host;
-    int port;
-} t_listen;
 
 /*
  * Server class store configurations
@@ -17,33 +9,18 @@ typedef struct s_listen {
  **/
 class Server : public Fd {
    public:
-    Server(std::string& fileContent);
-    Server(std::string& fileContent, const t_listen& listen);
+    Server(t_listen hostPort, ConfigBlock& configBlock);
     ~Server();
+    bool operator==(const t_listen& hostPort) const;
 
-    const std::string* getErrorPage(int errorCode) const;
-    size_t getMaxBodySize(void) const;
-    const std::string& getRoot(void) const;
-    const std::string* getServerName(void) const;
-    const Location* getLocation(std::string uri) const;
+    const ConfigBlock& getConfig(const std::string& serverName);
 
+    void configToServerName(ConfigBlock& configBlock);
     void handlePollin(int index);
     void handlePollout(int index);
 
    private:
-    std::map<int, std::string> _errorPages;
-    size_t _maxBodySize;
-    std::vector<t_listen> _hostPort;
-    std::string _root;
-    std::string _serverName;
-    std::map<std::string, Location> _locations;
-
-    void configure(std::string& fileContent);
-    void setErrorPage(std::string& fileContent);
-    void setMaxBodySize(std::string& fileContent);
-    void setHost(std::string& fileContent);
-    void setListen(std::string& fileContent);
-    void setRoot(std::string& fileContent);
-    void setServerName(std::string& fileContent);
-    void setLocation(std::string& fileContent);
+    t_listen _hostPort;
+    ConfigBlock* _configDefault;
+    std::map<std::string, ConfigBlock*> _configs;
 };

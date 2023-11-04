@@ -24,5 +24,5 @@ class Client : public Fd {
 
     int parseRequest(const std::string& uri);
 
-    void error(int statusCode);
+    void error(int statusCode, const ConfigBlock& config);
 };
