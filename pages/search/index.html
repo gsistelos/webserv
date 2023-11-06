@@ -1,0 +1,35 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap" rel="stylesheet">
+    <title>Search</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+    <div id="container">
+        <nav class="menu">
+            <a href="/pages/">Home</a>
+            <a href="/pages/upload/">Upload</a>
+            <a href="/pages/search/">Search</a>
+            <a href="/redirect/">Redirect</a>
+        </nav>
+        <div class="content">
+            <form action="../../cgi-bin/search.py" method="get">
+                <div class="description">
+                    <h2>Search and get your uploaded file!</h2>
+                    <span>Insert the filename below</span>
+                </div>
+                <input placeholder="Filename" class="input" type="text" name="filename">
+                <input class="button" type="submit" value="Search">
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>
