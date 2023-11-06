@@ -135,7 +135,7 @@ void HttpResponse::directoryList(const std::string& path) {
 void HttpResponse::error(int statusCode) {
     try {
         std::stringstream defaultPage;
-        defaultPage << "default_pages/" << statusCode << ".html";
+        defaultPage << "src/default_pages/" << statusCode << ".html";
 
         this->file(statusCode, defaultPage.str());
     } catch (const std::exception& e) {
