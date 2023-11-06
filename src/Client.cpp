@@ -31,7 +31,6 @@ Client::~Client() {
 }
 
 void Client::handlePollin(int index) {
-    std::cout << "Comecou pollin client" << std::endl;
     this->_request.readRequest(this->_fd);
 
     if (this->_request.ready() == false)
@@ -44,7 +43,6 @@ void Client::handlePollin(int index) {
 
     this->parseRequest(this->_request.getUri());
     this->_request.clear();
-    std::cout << "Terminou pollin client" << std::endl;
 }
 
 void Client::handlePollout(int index) {
@@ -62,7 +60,6 @@ void Client::handlePollout(int index) {
         throw Error("write");
 
     this->_response.clear();
-    std::cout << "Terminou pollout client" << std::endl;
 }
 
 int Client::parseRequest(const std::string& uri) {

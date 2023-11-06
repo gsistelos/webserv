@@ -91,5 +91,4 @@ void Server::handlePollin(int index) {
 
 void Server::handlePollout(int index) {
     (void)index;
-    std::cout << "Terminou pollout server" << std::endl;
 }

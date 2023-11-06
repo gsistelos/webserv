@@ -106,14 +106,14 @@ void HttpRequest::readHeader(int fd) {
     this->_query = this->_uri.substr(this->_uri.find("?") + 1);
     this->_uri = this->_uri.substr(0, this->_uri.find("?"));
 
-    // std::cout << std::endl
-    //           << "===== REQUEST =====" << std::endl;
-    // std::cout << this->_method << " "
-    //           << this->_uri;
-    // std::cout << this->_header << std::endl;
-    // std::cout << this->_body << std::endl;
-    // std::cout << "===================" << std::endl
-    //           << std::endl;
+    std::cout << std::endl
+              << "===== REQUEST =====" << std::endl
+              << std::endl;
+    std::cout << this->_method << " "
+              << this->_uri;
+    std::cout << this->_header << std::endl;
+    std::cout << "===================" << std::endl
+              << std::endl;
 
     size_t pos = this->_header.find("Transfer-Encoding: chunked");
     if (pos != std::string::npos) {

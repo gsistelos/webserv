@@ -120,7 +120,6 @@ void WebServ::start(void) {
                 else if (WebServ::pollfds[i].revents & POLLOUT)
                     WebServ::fds[i]->handlePollout(i);
             } catch (const std::exception& e) {
-                std::cout << "Aqui 3 " << std::endl;
                 std::cerr << "webserv: " << e.what() << std::endl;
             }
         }

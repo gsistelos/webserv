@@ -107,7 +107,6 @@ void Cgi::exec(const std::string& path, const std::string& body) {
 
 void Cgi::handlePollout(int index) {
     try {
-        std::cout << "Escrevendo pro cgi" << std::endl;
         ssize_t bytes = write(this->_fd,
                               this->_body.c_str() + this->_totalBytes,
                               this->_body.length() - this->_totalBytes);
@@ -122,7 +121,6 @@ void Cgi::handlePollout(int index) {
         close(this->_fd);
         this->_fd = this->_responseFd;
         WebServ::pollfds[index].fd = this->_responseFd;
-        std::cout << "Terminou pollout cgi" << std::endl;
     } catch (const std::exception& e) {
         WebServ::erase(index);
         throw e;
@@ -148,14 +146,12 @@ void Cgi::handlePollin(int index) {
         if (ready == -1)
             throw Error("waitpid");
         if (ready == 0) {
-            std::cout << "Output cgi n esta pronto ainda" << std::endl;
             return;
         }
 
         if (WEXITSTATUS(status) != EXIT_SUCCESS)
             WebServ::erase(index);
-        std::cout << "fim pollin cgi" << std::endl;
-        std::cout << "Fd do cgi:" << this->_fd << std::endl;
+
     } catch (const std::exception& e) {
         WebServ::erase(index);
         throw e;
