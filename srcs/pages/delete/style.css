@@ -1,0 +1,89 @@
+* {
+	margin: 0;
+	padding: 0;
+	font-family: 'Poppins', sans-serif;
+}
+
+.menu {
+	display: flex;
+	justify-content: center;
+	background-color: black;
+	align-items: center;
+	height: 10vh;
+}
+
+.menu a {
+	position: relative;
+	color: white;
+	font-family: Arial, Helvetica, sans-serif;
+	text-decoration: none;
+	margin: 10px;
+}
+
+.menu a::before {
+	content: "";
+	position: absolute;
+	bottom: -2px;
+	width: 0;
+	height: 2px;
+	background-color: cyan;
+	transition: width 0.3s ease-in-out;
+}
+
+.menu a:hover::before {
+	width: 100%;
+}
+
+.content {
+	display: flex;
+	height: 90vh;
+	justify-content: center;
+	align-items: center;
+	background-image: url("/assets/images/bg.jpeg");
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+form {
+	display: flex;
+	height: 95%;
+	width: 50%;
+	border-radius: 6px;
+	flex-direction: column;
+	align-items: center;
+	justify-content: space-around;
+	background-color: black;
+}
+
+.description {
+	font-size: 24px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: white;
+}
+
+.input {
+	width: 50%;
+	font-size: 16px;
+	padding: 8px;
+	border: none;
+	border-radius: 6px;
+}
+
+.button {
+	width: 50%;
+	height: 10%;
+	border: none;
+	border-radius: 6px;
+	color: white;
+	background-color: #098f5d;
+	font-size: 20px;
+	transition: 0.4s;
+}
+
+.button:hover {
+	cursor: pointer;
+	background-color: #21CA8A;
+}
