@@ -16,7 +16,6 @@ int main(int argc, char** argv) {
         else
             webServ.configure("webserv.conf");
     } catch (const std::exception& e) {
-        std::cout << "Aqui 1" << std::endl;
         std::cerr << "webserv: " << e.what() << std::endl;
         return 1;
     }
