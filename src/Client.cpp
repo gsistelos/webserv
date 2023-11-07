@@ -77,6 +77,11 @@ int Client::parseRequest(const std::string& uri) {
 
     const ConfigBlock& config = this->_server.getConfig(server_name);
 
+    if (this->_request.getContentLength() > config.getMaxBodySize()) {
+        this->error(413, config);
+        return 413;
+    }
+
     const Location* location = config.getLocation(uri);
     if (location != NULL) {
         if (location->isMethodAllowed(this->_request.getMethod()) == false) {

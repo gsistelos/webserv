@@ -179,6 +179,7 @@ const std::string& HttpResponse::getStatusMessage(int statusCode) {
         statusMessage[404] = "Not Found";
         statusMessage[403] = "Forbidden";
         statusMessage[405] = "Method Not Allowed";
+        statusMessage[413] = "Request Entity Too Large";
         statusMessage[500] = "Internal Server Error";
         statusMessage[501] = "Not Implemented";
         statusMessage[502] = "Bad Gateway";

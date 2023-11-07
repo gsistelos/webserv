@@ -51,6 +51,10 @@ const std::string& HttpRequest::getUri(void) const {
     return this->_uri;
 }
 
+const size_t& HttpRequest::getContentLength(void) const {
+    return this->_contentLength;
+}
+
 std::string HttpRequest::getHeaderValue(const std::string& key) const {
     size_t headerStart = this->_header.find(key);
     if (headerStart == std::string::npos)

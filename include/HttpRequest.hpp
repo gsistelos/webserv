@@ -13,9 +13,10 @@ class HttpRequest {
 
     const std::string& getHeader(void) const;
     const std::string& getBody(void) const;
+    const std::string& getQuery(void) const;
     const std::string& getMethod(void) const;
     const std::string& getUri(void) const;
-    const std::string& getQuery(void) const;
+    const size_t& getContentLength(void) const;
     std::string getHeaderValue(const std::string& key) const;
 
     void setUri(const std::string& uri);
