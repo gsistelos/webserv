@@ -4,7 +4,6 @@
 
 #include <cerrno>
 #include <cstdlib>
-#include <iostream>
 
 #include "Error.hpp"
 #include "Parser.hpp"
