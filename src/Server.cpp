@@ -69,10 +69,8 @@ bool Server::operator==(const t_listen& hostPort) const {
 }
 
 const ConfigBlock& Server::getConfig(const std::string& serverName) {
-    std::string fix = serverName.substr(2, serverName.length() - 2);
-
-    if (this->_configs.count(fix) != 0) {
-        return *this->_configs[fix];
+    if (this->_configs.count(serverName) != 0) {
+        return *this->_configs[serverName];
     }
 
     return *this->_configDefault;
