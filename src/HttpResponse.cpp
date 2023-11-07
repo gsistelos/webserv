@@ -148,8 +148,9 @@ void HttpResponse::cgi(const std::string& path, const HttpRequest& request) {
         Cgi* cgi = new Cgi(this->_response);
         cgi->setEnv("REQUEST_METHOD=" + request.getMethod());
         if (request.getBody() != "") {
-            cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type: "));
-            cgi->setEnv("CONTENT_LENGTH=" + request.getHeaderValue("Content-Length: "));
+            std::cout << "Setou content type e content length" << std::endl;
+            cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type"));
+            cgi->setEnv("CONTENT_LENGTH=" + request.getHeaderValue("Content-Length"));
         }
         cgi->setEnv("QUERY_STRING=" + request.getQuery());
         cgi->exec(path, request.getBody());
