@@ -143,15 +143,16 @@ void Cgi::handlePollin(int index) {
         int status;
 
         int ready = waitpid(this->_pid, &status, WNOHANG);
-        if (ready == -1)
+
+        if (ready == -1) {
             throw Error("waitpid");
+        }
+
         if (ready == 0) {
             return;
         }
 
-        if (WEXITSTATUS(status) != EXIT_SUCCESS)
-            WebServ::erase(index);
-
+        WebServ::erase(index);
     } catch (const std::exception& e) {
         WebServ::erase(index);
         throw e;
