@@ -68,6 +68,11 @@ void Cgi::exec(const std::string& path, const std::string& body) {
     }
 
     this->_pid = fork();
+    cgiProcess process;
+    process.pid = this->_pid;
+    process.start_time = time(NULL);
+    WebServ::cgiProcesses.push_back(process);
+
     if (this->_pid == -1) {
         close_pipe(requestFd);
         close_pipe(responseFd);
@@ -107,6 +112,7 @@ void Cgi::exec(const std::string& path, const std::string& body) {
 
 void Cgi::handlePollout(int index) {
     try {
+        // std::cout << "Recebendo pollout de cgi pid: " << this->_pid << std::endl;
         ssize_t bytes = write(this->_fd,
                               this->_body.c_str() + this->_totalBytes,
                               this->_body.length() - this->_totalBytes);
@@ -129,6 +135,7 @@ void Cgi::handlePollout(int index) {
 
 void Cgi::handlePollin(int index) {
     try {
+        // std::cout << "Recebendo pollin de cgi pid: " << this->_pid << std::endl;
         char buffer[BUFFER_SIZE];
 
         ssize_t bytes = read(this->_fd, buffer, BUFFER_SIZE);
@@ -152,6 +159,11 @@ void Cgi::handlePollin(int index) {
             return;
         }
 
+        if (this->_response == "") {
+            this->_response.append("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+        }
+
+        // std::cout << "cgi finalizado" << std::endl;
         WebServ::erase(index);
     } catch (const std::exception& e) {
         WebServ::erase(index);

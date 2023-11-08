@@ -12,6 +12,7 @@
 
 std::vector<pollfd> WebServ::pollfds;
 std::vector<Fd*> WebServ::fds;
+std::vector<cgiProcess> WebServ::cgiProcesses;
 bool WebServ::quit = false;
 
 void sighandler(int signo) {
@@ -98,6 +99,22 @@ void WebServ::configure(const std::string& configFile) {
     }
 }
 
+void WebServ::checkRunningProcesses(void) {
+    time_t current_time = time(NULL);
+
+    for (std::vector<cgiProcess>::iterator it = WebServ::cgiProcesses.begin(); it != WebServ::cgiProcesses.end();) {
+        time_t elapsed_time = current_time - it->start_time;
+
+        if (elapsed_time > 5) {
+            // std::cout << "Kill no pid:" << it->pid << std::endl;
+            kill(it->pid, SIGKILL);
+            it = WebServ::cgiProcesses.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void WebServ::start(void) {
     while (1) {
         int ready = poll(WebServ::pollfds.data(), WebServ::pollfds.size(), -1);
@@ -115,6 +132,7 @@ void WebServ::start(void) {
         size_t i = WebServ::pollfds.size();
         while (i--) {
             try {
+                this->checkRunningProcesses();
                 if (WebServ::pollfds[i].revents & POLLIN)
                     WebServ::fds[i]->handlePollin(i);
                 else if (WebServ::pollfds[i].revents & POLLOUT)
