@@ -105,8 +105,7 @@ void WebServ::checkRunningProcesses(void) {
     for (std::vector<cgiProcess>::iterator it = WebServ::cgiProcesses.begin(); it != WebServ::cgiProcesses.end();) {
         time_t elapsed_time = current_time - it->start_time;
 
-        if (elapsed_time > 5) {
-            // std::cout << "Kill no pid:" << it->pid << std::endl;
+        if (elapsed_time > 2) {
             kill(it->pid, SIGKILL);
             it = WebServ::cgiProcesses.erase(it);
         } else {

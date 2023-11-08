@@ -49,6 +49,14 @@ void HttpResponse::internalServerError(void) {
         "</html>";
 }
 
+bool HttpResponse::empty(void) const {
+    return this->_response.empty();
+}
+
+void HttpResponse::append(char* buffer, size_t bytes) {
+    this->_response.append(buffer, bytes);
+}
+
 void HttpResponse::body(int statusCode, const std::string& contentType, const std::string& body) {
     try {
         std::stringstream ss;
@@ -145,7 +153,7 @@ void HttpResponse::error(int statusCode) {
 
 void HttpResponse::cgi(const std::string& path, const HttpRequest& request) {
     try {
-        Cgi* cgi = new Cgi(this->_response);
+        Cgi* cgi = new Cgi(*this);
         cgi->setEnv("REQUEST_METHOD=" + request.getMethod());
         if (request.getBody() != "") {
             cgi->setEnv("CONTENT_TYPE=" + request.getHeaderValue("Content-Type"));

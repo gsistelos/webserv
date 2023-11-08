@@ -11,11 +11,13 @@ class HttpResponse {
     ~HttpResponse();
 
     bool ready(void) const;
+    bool empty(void) const;
     const char* c_str(void) const;
     size_t length(void) const;
     void clear(void);
 
     void internalServerError(void);
+    void append(char* buffer, size_t bytes);
     void body(int statusCode, const std::string& contentType, const std::string& body);
     void file(int statusCode, const std::string& path);
     void redirect(const std::string& redirect);

@@ -7,9 +7,11 @@
 
 #include "Fd.hpp"
 
+class HttpResponse;
+
 class Cgi : public Fd {
    public:
-    Cgi(std::string& response);
+    Cgi(HttpResponse& response);
     ~Cgi();
 
     void setEnv(const std::string& env);
@@ -29,5 +31,5 @@ class Cgi : public Fd {
     std::string _body;
     size_t _totalBytes;
 
-    std::string& _response;
+    HttpResponse& _response;
 };
