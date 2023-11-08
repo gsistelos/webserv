@@ -148,8 +148,23 @@ int Client::parseRequest(const std::string& uri) {
         return 200;
     }
 
+    if (this->_request.getMethod() == "DELETE")
+        return this->deleteFile(path, config);
+
     this->_response.file(200, path);
 
+    return 200;
+}
+
+int Client::deleteFile(std::string path, const ConfigBlock& config) {
+    if (unlink(path.c_str()) == -1) {
+        if (errno == EACCES) {
+            this->error(403, config);
+            return 403;
+        }
+    }
+
+    this->_response.body(200, "text/plain", "File deleted");
     return 200;
 }
 

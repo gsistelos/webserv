@@ -23,6 +23,7 @@ class Client : public Fd {
     std::string _path;
 
     int parseRequest(const std::string& uri);
+    int deleteFile(std::string path, const ConfigBlock& config);
 
     void error(int statusCode, const ConfigBlock& config);
 };
