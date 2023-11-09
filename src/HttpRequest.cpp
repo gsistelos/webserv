@@ -186,6 +186,7 @@ void HttpRequest::readHeader(int fd) {
         return;
     }
 
+    this->_contentLength = 0;
     this->_isReady = true;
 }
 
