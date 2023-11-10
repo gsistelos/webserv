@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500&display=swap" rel="stylesheet">
-    <title>Search</title>
+    <title>Delete</title>
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
@@ -20,17 +20,36 @@
             <a href="/pages/delete/">Delete</a>
             <a href="/redirect/">Redirect</a>
         </nav>
+        
         <div class="content">
-            <form action="../../cgi-bin/search.py" method="get">
+            <form id="deleteForm">
                 <div class="description">
-                    <h2>Search and get your uploaded file!</h2>
+                    <h2>Delete your uploaded file!</h2>
                     <span>Insert the filename below</span>
                 </div>
-                <input placeholder="Filename" class="input" type="text" name="filename">
-                <input class="button" type="submit" value="Search">
+                <input placeholder="Filename" class="input" type="text" name="filename" id="filename">
+                <input class="button" type="submit" value="Delete">
             </form>
         </div>
     </div>
 </body>
 
+<script>
+    document.getElementById('deleteForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        var filename = document.getElementById('filename').value;
+
+        fetch('/cgi-bin/uploads/' + filename, {
+            method: 'DELETE',
+        })
+        .then(response => response.text())
+        .then(data => {
+            console.log(data);
+            document.documentElement.innerHTML = data;
+        });
+    });
+</script>
+
 </html>
+
