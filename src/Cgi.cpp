@@ -119,6 +119,9 @@ void Cgi::handlePollout(int index) {
         if (bytes == -1)
             throw Error("write");
 
+        if (bytes == 0) {
+        }
+
         this->_totalBytes += bytes;
 
         if (this->_totalBytes != this->_body.length())

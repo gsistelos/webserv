@@ -104,6 +104,9 @@ void HttpRequest::readHeader(int fd) {
     if (bytes == -1)
         throw Error("read");
 
+    if (bytes == 0) {
+    }
+
     std::string request(buffer, bytes);
     if (request.empty()) {
         this->clear();
@@ -197,6 +200,9 @@ void HttpRequest::readChunkedBody(int fd) {
     if (bytes == (size_t)-1)
         throw Error("read");
 
+    if (bytes == 0) {
+    }
+
     if (this->_chunk.empty()) {
         // It's a new chunk, get the chunk size
 
@@ -256,6 +262,9 @@ void HttpRequest::readContentLengthBody(int fd) {
     size_t bytes = read(fd, &buffer, BODY_BUFFER_SIZE);
     if (bytes == (size_t)-1)
         throw Error("read");
+
+    if (bytes == 0) {
+    }
 
     // Append to the body, not exceeding the body length
 

@@ -59,6 +59,9 @@ void Client::handlePollout(int index) {
     if (bytes == -1)
         throw Error("write");
 
+    if (bytes == 0) {
+    }
+
     this->_response.clear();
 }
 
