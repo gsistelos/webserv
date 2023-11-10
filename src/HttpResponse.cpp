@@ -192,6 +192,7 @@ const std::string& HttpResponse::getStatusMessage(int statusCode) {
         statusMessage[500] = "Internal Server Error";
         statusMessage[501] = "Not Implemented";
         statusMessage[502] = "Bad Gateway";
+        statusMessage[505] = "HTTP Version Not Supported";
     }
 
     if (statusMessage.count(statusCode))

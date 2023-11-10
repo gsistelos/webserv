@@ -10,6 +10,7 @@
 
 #include "ConfigBlock.hpp"
 #include "Error.hpp"
+#include "HttpError.hpp"
 #include "Server.hpp"
 #include "WebServ.hpp"
 
@@ -45,10 +46,10 @@ void Client::handlePollin(int clientPos) {
 
         this->parseRequest(this->_request.getUri());
         this->_request.clear();
-    } catch (const HttpRequest::BadRequest& e) {
-        this->_response.error(400);
-        this->_request.clear();
+    } catch (const HttpError& e) {
+        this->error(e.status(), this->_server.getConfig(this->_request.getHeaderValue("Host")));
         std::cerr << e.what() << std::endl;
+        this->_request.clear();
     } catch (const Error& e) {
         WebServ::erase(clientPos);
         std::cerr << e.what() << std::endl;
@@ -188,5 +189,15 @@ void Client::error(int statusCode, const ConfigBlock& config) {
         return;
     }
 
-    this->_response.redirect(*errorPage);
+    std::string path = config.getRoot() + *errorPage;
+
+    if (access(path.c_str(), R_OK)) {
+        if (statusCode == 404)
+            this->_response.error(404);
+        else
+            this->error(404, config);
+        return;
+    }
+
+    this->_response.file(statusCode, config.getRoot() + *errorPage);
 }

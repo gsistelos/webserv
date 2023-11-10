@@ -20,18 +20,6 @@ class HttpRequest {
 
     void readRequest(int fd);
 
-    class BadRequest : public std::exception {
-       public:
-        BadRequest(void);
-        BadRequest(const std::string& message);
-        ~BadRequest() throw();
-
-        const char* what(void) const throw();
-
-       private:
-        std::string _message;
-    };
-
    private:
     std::string _method;
     std::string _uri;
