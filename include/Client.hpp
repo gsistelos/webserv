@@ -12,8 +12,8 @@ class Client : public Fd {
     Client(Server& server);
     ~Client();
 
-    void handlePollin(int index);
-    void handlePollout(int index);
+    void handlePollin(int clientPos);
+    void handlePollout(int clientPos);
 
    private:
     Server& _server;

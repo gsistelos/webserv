@@ -30,14 +30,14 @@ Client::Client(Server& server) : _server(server) {
 Client::~Client() {
 }
 
-void Client::handlePollin(int index) {
-    this->_request.readRequest(this->_fd);
+void Client::handlePollin(int clientPos) {
+    this->_request.readRequest(this->_fd, clientPos);
 
     if (this->_request.ready() == false)
         return;
 
     if (this->_request.empty() == true) {
-        WebServ::erase(index);
+        WebServ::erase(clientPos);
         return;
     }
 
@@ -45,9 +45,7 @@ void Client::handlePollin(int index) {
     this->_request.clear();
 }
 
-void Client::handlePollout(int index) {
-    (void)index;
-
+void Client::handlePollout(int clientPos) {
     if (!this->_response.ready())
         return;
 
@@ -56,8 +54,10 @@ void Client::handlePollout(int index) {
     // std::cout << "===================" << std::endl;
 
     ssize_t bytes = write(this->_fd, this->_response.c_str(), this->_response.length());
-    if (bytes == -1)
+    if (bytes == -1) {
+        WebServ::erase(clientPos);
         throw Error("write");
+    }
 
     if (bytes == 0) {
     }

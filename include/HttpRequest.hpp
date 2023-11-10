@@ -18,7 +18,7 @@ class HttpRequest {
     size_t getContentLength(void) const;
     std::string getHeaderValue(const std::string& key) const;
 
-    void readRequest(int fd);
+    void readRequest(int fd, int clientPos);
 
     class VersionNotSupported : public std::exception {
        public:
@@ -46,7 +46,7 @@ class HttpRequest {
 
     std::string _chunk;
 
-    void readHeader(int fd);
-    void readChunkedBody(int fd);
-    void readContentLengthBody(int fd);
+    void readHeader(int fd, int clientPos);
+    void readChunkedBody(int fd, int clientPos);
+    void readContentLengthBody(int fd, int clientPos);
 };

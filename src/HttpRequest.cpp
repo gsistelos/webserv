@@ -7,6 +7,7 @@
 
 #include "Error.hpp"
 #include "Parser.hpp"
+#include "WebServ.hpp"
 
 #define HEADER_BUFFER_SIZE 2048   // 2KB
 #define BODY_BUFFER_SIZE 1048576  // 1MB
@@ -75,16 +76,16 @@ std::string HttpRequest::getHeaderValue(const std::string& key) const {
     }
 }
 
-void HttpRequest::readRequest(int fd) {
+void HttpRequest::readRequest(int fd, int clientPos) {
     if (this->_method.empty()) {
-        readHeader(fd);
+        readHeader(fd, clientPos);
         return;
     }
 
     if (this->_isChunked)
-        readChunkedBody(fd);
+        readChunkedBody(fd, clientPos);
     else
-        readContentLengthBody(fd);
+        readContentLengthBody(fd, clientPos);
 }
 
 const char* HttpRequest::VersionNotSupported::what(void) const throw() {
@@ -95,14 +96,16 @@ const char* HttpRequest::BadRequest::what(void) const throw() {
     return "Bad Request";
 }
 
-void HttpRequest::readHeader(int fd) {
+void HttpRequest::readHeader(int fd, int clientPos) {
     this->_isReady = false;
 
     char buffer[HEADER_BUFFER_SIZE];
 
     ssize_t bytes = read(fd, buffer, HEADER_BUFFER_SIZE);
-    if (bytes == -1)
+    if (bytes == -1) {
+        WebServ::erase(clientPos);
         throw Error("read");
+    }
 
     if (bytes == 0) {
     }
@@ -193,12 +196,14 @@ void HttpRequest::readHeader(int fd) {
     this->_isReady = true;
 }
 
-void HttpRequest::readChunkedBody(int fd) {
+void HttpRequest::readChunkedBody(int fd, int clientPos) {
     char buffer[BODY_BUFFER_SIZE];
 
     size_t bytes = read(fd, buffer, BODY_BUFFER_SIZE);
-    if (bytes == (size_t)-1)
+    if (bytes == (size_t)-1) {
+        WebServ::erase(clientPos);
         throw Error("read");
+    }
 
     if (bytes == 0) {
     }
@@ -256,12 +261,14 @@ void HttpRequest::readChunkedBody(int fd) {
     }
 }
 
-void HttpRequest::readContentLengthBody(int fd) {
+void HttpRequest::readContentLengthBody(int fd, int clientPos) {
     char buffer[BODY_BUFFER_SIZE];
 
     size_t bytes = read(fd, &buffer, BODY_BUFFER_SIZE);
-    if (bytes == (size_t)-1)
+    if (bytes == (size_t)-1) {
+        WebServ::erase(clientPos);
         throw Error("read");
+    }
 
     if (bytes == 0) {
     }
