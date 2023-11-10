@@ -7,7 +7,6 @@
 
 #include "Error.hpp"
 #include "Parser.hpp"
-#include "WebServ.hpp"
 
 #define HEADER_BUFFER_SIZE 2048   // 2KB
 #define BODY_BUFFER_SIZE 1048576  // 1MB
@@ -76,36 +75,39 @@ std::string HttpRequest::getHeaderValue(const std::string& key) const {
     }
 }
 
-void HttpRequest::readRequest(int fd, int clientPos) {
+void HttpRequest::readRequest(int fd) {
     if (this->_method.empty()) {
-        readHeader(fd, clientPos);
+        readHeader(fd);
         return;
     }
 
     if (this->_isChunked)
-        readChunkedBody(fd, clientPos);
+        readChunkedBody(fd);
     else
-        readContentLengthBody(fd, clientPos);
+        readContentLengthBody(fd);
 }
 
-const char* HttpRequest::VersionNotSupported::what(void) const throw() {
-    return "Version Not Supported";
+HttpRequest::BadRequest::BadRequest(void) {
+}
+
+HttpRequest::BadRequest::BadRequest(const std::string& message) : _message(message) {
+}
+
+HttpRequest::BadRequest::~BadRequest() throw() {
 }
 
 const char* HttpRequest::BadRequest::what(void) const throw() {
-    return "Bad Request";
+    return _message.c_str();
 }
 
-void HttpRequest::readHeader(int fd, int clientPos) {
+void HttpRequest::readHeader(int fd) {
     this->_isReady = false;
 
     char buffer[HEADER_BUFFER_SIZE];
 
     ssize_t bytes = read(fd, buffer, HEADER_BUFFER_SIZE);
-    if (bytes == -1) {
-        WebServ::erase(clientPos);
+    if (bytes == -1)
         throw Error("read");
-    }
 
     if (bytes == 0) {
     }
@@ -120,12 +122,14 @@ void HttpRequest::readHeader(int fd, int clientPos) {
     // Get method, uri, query and http version
 
     Parser::extractWord(request, this->_method);
-    if (this->_method.empty())
-        throw BadRequest();
+    if (this->_method.empty()) {
+        throw BadRequest("HTTP method not specified");
+    }
 
     Parser::extractWord(request, this->_uri);
-    if (this->_uri.empty())
-        throw BadRequest();
+    if (this->_uri.empty()) {
+        throw BadRequest("URI not specified");
+    }
 
     size_t queryStart = this->_uri.find("?");
     if (queryStart == std::string::npos) {
@@ -137,14 +141,16 @@ void HttpRequest::readHeader(int fd, int clientPos) {
 
     std::string httpVersion;
     Parser::extractWord(request, httpVersion);
-    if (httpVersion != "HTTP/1.1")
-        throw VersionNotSupported();
+    if (httpVersion != "HTTP/1.1") {
+        throw BadRequest("HTTP version not supported");
+    }
 
     // Split header and body
 
     size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos)
-        throw BadRequest();
+    if (headerEnd == std::string::npos) {
+        throw BadRequest("Header not terminated");
+    }
 
     this->_header = request.substr(0, headerEnd + 2);
 
@@ -154,8 +160,9 @@ void HttpRequest::readHeader(int fd, int clientPos) {
 
     std::string transferEncoding = this->getHeaderValue("Transfer-Encoding");
     if (errno == 0) {
-        if (transferEncoding != "chunked")
-            throw BadRequest();
+        if (transferEncoding != "chunked") {
+            throw BadRequest("Transfer-Encoding not supported");
+        }
 
         this->_isChunked = true;
 
@@ -168,14 +175,15 @@ void HttpRequest::readHeader(int fd, int clientPos) {
     std::string contentLength = this->getHeaderValue("Content-Length");
     if (errno == 0) {
         for (std::string::iterator it = contentLength.begin(); it != contentLength.end(); it++) {
-            if (std::isdigit(*it) == false)
-                throw BadRequest();
+            if (std::isdigit(*it) == false) {
+                throw BadRequest("Content-Length not a number");
+            }
         }
 
         this->_contentLength = std::strtoll(contentLength.c_str(), NULL, 10);
         if (errno == ERANGE) {
             errno = 0;
-            throw BadRequest();
+            throw BadRequest("Content-Length out of range");
         }
 
         // Set remainder body
@@ -196,14 +204,12 @@ void HttpRequest::readHeader(int fd, int clientPos) {
     this->_isReady = true;
 }
 
-void HttpRequest::readChunkedBody(int fd, int clientPos) {
+void HttpRequest::readChunkedBody(int fd) {
     char buffer[BODY_BUFFER_SIZE];
 
     size_t bytes = read(fd, buffer, BODY_BUFFER_SIZE);
-    if (bytes == (size_t)-1) {
-        WebServ::erase(clientPos);
+    if (bytes == (size_t)-1)
         throw Error("read");
-    }
 
     if (bytes == 0) {
     }
@@ -214,20 +220,23 @@ void HttpRequest::readChunkedBody(int fd, int clientPos) {
         this->_chunk.assign(buffer, bytes);
 
         size_t pos = this->_chunk.find("\r\n");
-        if (pos == std::string::npos)
-            throw BadRequest();
+        if (pos == std::string::npos) {
+            throw BadRequest("Chunk not terminated");
+        }
 
         std::string chunkSize = this->_chunk.substr(0, pos);
 
         for (std::string::iterator it = chunkSize.begin(); it != chunkSize.end(); it++) {
-            if (std::isxdigit(*it) == false)
-                throw BadRequest();
+            if (std::isxdigit(*it) == false) {
+                throw BadRequest("Chunk size not a hex number");
+            }
         }
 
         long long size = std::strtoll(chunkSize.c_str(), NULL, 16);
         if (errno == ERANGE) {
             errno = 0;
-            throw BadRequest();
+
+            throw BadRequest("Chunk size out of range");
         }
 
         this->_chunkSize = size;
@@ -261,14 +270,12 @@ void HttpRequest::readChunkedBody(int fd, int clientPos) {
     }
 }
 
-void HttpRequest::readContentLengthBody(int fd, int clientPos) {
+void HttpRequest::readContentLengthBody(int fd) {
     char buffer[BODY_BUFFER_SIZE];
 
     size_t bytes = read(fd, &buffer, BODY_BUFFER_SIZE);
-    if (bytes == (size_t)-1) {
-        WebServ::erase(clientPos);
+    if (bytes == (size_t)-1)
         throw Error("read");
-    }
 
     if (bytes == 0) {
     }

@@ -31,18 +31,28 @@ Client::~Client() {
 }
 
 void Client::handlePollin(int clientPos) {
-    this->_request.readRequest(this->_fd, clientPos);
+    try {
+        this->_request.readRequest(this->_fd);
 
-    if (this->_request.ready() == false)
-        return;
+        if (this->_request.ready() == false) {
+            return;
+        }
 
-    if (this->_request.empty() == true) {
+        if (this->_request.empty() == true) {
+            WebServ::erase(clientPos);
+            return;
+        }
+
+        this->parseRequest(this->_request.getUri());
+        this->_request.clear();
+    } catch (const HttpRequest::BadRequest& e) {
+        this->_response.error(400);
+        this->_request.clear();
+        std::cerr << e.what() << std::endl;
+    } catch (const Error& e) {
         WebServ::erase(clientPos);
-        return;
+        std::cerr << e.what() << std::endl;
     }
-
-    this->parseRequest(this->_request.getUri());
-    this->_request.clear();
 }
 
 void Client::handlePollout(int clientPos) {
