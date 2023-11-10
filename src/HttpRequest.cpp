@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "Error.hpp"
+#include "HttpError.hpp"
 #include "Parser.hpp"
 
 #define HEADER_BUFFER_SIZE 2048   // 2KB
@@ -87,18 +88,7 @@ void HttpRequest::readRequest(int fd) {
         readContentLengthBody(fd);
 }
 
-HttpRequest::BadRequest::BadRequest(void) {
-}
-
-HttpRequest::BadRequest::BadRequest(const std::string& message) : _message(message) {
-}
-
-HttpRequest::BadRequest::~BadRequest() throw() {
-}
-
-const char* HttpRequest::BadRequest::what(void) const throw() {
-    return _message.c_str();
-}
+#include <iostream>
 
 void HttpRequest::readHeader(int fd) {
     this->_isReady = false;
@@ -122,14 +112,12 @@ void HttpRequest::readHeader(int fd) {
     // Get method, uri, query and http version
 
     Parser::extractWord(request, this->_method);
-    if (this->_method.empty()) {
-        throw BadRequest("HTTP method not specified");
-    }
+    if (this->_method.empty() || (this->_method != "GET" && this->_method != "POST" && this->_method != "DELETE"))
+        throw HttpError(400);
 
     Parser::extractWord(request, this->_uri);
-    if (this->_uri.empty()) {
-        throw BadRequest("URI not specified");
-    }
+    if (this->_uri.empty())
+        throw HttpError(400);
 
     size_t queryStart = this->_uri.find("?");
     if (queryStart == std::string::npos) {
@@ -142,15 +130,15 @@ void HttpRequest::readHeader(int fd) {
     std::string httpVersion;
     Parser::extractWord(request, httpVersion);
     if (httpVersion != "HTTP/1.1") {
-        throw BadRequest("HTTP version not supported");
+        std::cout << "yeah, here" << std::endl;
+        throw HttpError(505);
     }
 
     // Split header and body
 
     size_t headerEnd = request.find("\r\n\r\n");
-    if (headerEnd == std::string::npos) {
-        throw BadRequest("Header not terminated");
-    }
+    if (headerEnd == std::string::npos)
+        throw HttpError(400);
 
     this->_header = request.substr(0, headerEnd + 2);
 
@@ -160,9 +148,8 @@ void HttpRequest::readHeader(int fd) {
 
     std::string transferEncoding = this->getHeaderValue("Transfer-Encoding");
     if (errno == 0) {
-        if (transferEncoding != "chunked") {
-            throw BadRequest("Transfer-Encoding not supported");
-        }
+        if (transferEncoding != "chunked")
+            throw HttpError(501);
 
         this->_isChunked = true;
 
@@ -175,15 +162,14 @@ void HttpRequest::readHeader(int fd) {
     std::string contentLength = this->getHeaderValue("Content-Length");
     if (errno == 0) {
         for (std::string::iterator it = contentLength.begin(); it != contentLength.end(); it++) {
-            if (std::isdigit(*it) == false) {
-                throw BadRequest("Content-Length not a number");
-            }
+            if (std::isdigit(*it) == false)
+                throw HttpError(400);
         }
 
         this->_contentLength = std::strtoll(contentLength.c_str(), NULL, 10);
         if (errno == ERANGE) {
             errno = 0;
-            throw BadRequest("Content-Length out of range");
+            throw HttpError(400);
         }
 
         // Set remainder body
@@ -220,23 +206,20 @@ void HttpRequest::readChunkedBody(int fd) {
         this->_chunk.assign(buffer, bytes);
 
         size_t pos = this->_chunk.find("\r\n");
-        if (pos == std::string::npos) {
-            throw BadRequest("Chunk not terminated");
-        }
+        if (pos == std::string::npos)
+            throw HttpError(400);
 
         std::string chunkSize = this->_chunk.substr(0, pos);
 
         for (std::string::iterator it = chunkSize.begin(); it != chunkSize.end(); it++) {
-            if (std::isxdigit(*it) == false) {
-                throw BadRequest("Chunk size not a hex number");
-            }
+            if (std::isxdigit(*it) == false)
+                throw HttpError(400);
         }
 
         long long size = std::strtoll(chunkSize.c_str(), NULL, 16);
         if (errno == ERANGE) {
             errno = 0;
-
-            throw BadRequest("Chunk size out of range");
+            throw HttpError(400);
         }
 
         this->_chunkSize = size;
