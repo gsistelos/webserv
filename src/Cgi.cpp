@@ -21,6 +21,7 @@ static void close_pipe(int fd[2]) {
 }
 
 Cgi::Cgi(HttpResponse& response) : _responseFd(-1), _pid(-1), _totalBytes(0), _response(response) {
+    this->_isCgi = true;
 }
 
 Cgi::~Cgi() {
@@ -148,24 +149,6 @@ void Cgi::handlePollin(int index) {
         }
 
         this->_response.append(buffer, bytes);
-
-        int status;
-
-        int ready = waitpid(this->_pid, &status, WNOHANG);
-
-        if (ready == -1) {
-            throw Error("waitpid");
-        }
-
-        if (ready == 0) {
-            return;
-        }
-
-        if (this->_response.empty()) {
-            this->_response.internalServerError();
-        }
-
-        WebServ::erase(index);
     } catch (const std::exception& e) {
         WebServ::erase(index);
         throw e;

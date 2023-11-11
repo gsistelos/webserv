@@ -32,7 +32,7 @@ class WebServ {
 
     static void push_back(Fd* fd);
     static void erase(int index);
-    void checkRunningProcesses(void);
+    void checkRunningProcesses(int index);
 
     void configure(const std::string& configFile);
     void start(void);

@@ -9,6 +9,7 @@
 #include "Error.hpp"
 #include "Parser.hpp"
 #include "Server.hpp"
+#include "Cgi.hpp"
 
 std::vector<pollfd> WebServ::pollfds;
 std::vector<Fd*> WebServ::fds;
@@ -99,7 +100,7 @@ void WebServ::configure(const std::string& configFile) {
     }
 }
 
-void WebServ::checkRunningProcesses(void) {
+void WebServ::checkRunningProcesses(int index) {
     time_t current_time = time(NULL);
 
     for (std::vector<cgiProcess>::iterator it = WebServ::cgiProcesses.begin(); it != WebServ::cgiProcesses.end();) {
@@ -107,6 +108,7 @@ void WebServ::checkRunningProcesses(void) {
 
         if (elapsed_time > 2) {
             kill(it->pid, SIGKILL);
+            WebServ::erase(index);
             it = WebServ::cgiProcesses.erase(it);
         } else {
             ++it;
@@ -131,7 +133,8 @@ void WebServ::start(void) {
         size_t i = WebServ::pollfds.size();
         while (i--) {
             try {
-                this->checkRunningProcesses();
+                if (WebServ::fds[i]->isCgi())
+                    this->checkRunningProcesses(i);
                 if (WebServ::pollfds[i].revents & POLLIN)
                     WebServ::fds[i]->handlePollin(i);
                 else if (WebServ::pollfds[i].revents & POLLOUT)
