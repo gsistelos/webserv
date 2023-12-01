@@ -18,6 +18,8 @@ class Cgi : public Fd {
 
     void exec(const std::string& path, const std::string& body);
 
+    void checkRunningProcesses(int index);
+    void routine(int index);
     void handlePollin(int index);
     void handlePollout(int index);
 

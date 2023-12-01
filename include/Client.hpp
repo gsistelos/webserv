@@ -12,6 +12,7 @@ class Client : public Fd {
     Client(Server& server);
     ~Client();
 
+    void routine(int clientPos);
     void handlePollin(int clientPos);
     void handlePollout(int clientPos);
 

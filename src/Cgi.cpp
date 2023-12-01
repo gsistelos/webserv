@@ -21,7 +21,6 @@ static void close_pipe(int fd[2]) {
 }
 
 Cgi::Cgi(HttpResponse& response) : _responseFd(-1), _pid(-1), _totalBytes(0), _response(response) {
-    this->_isCgi = true;
 }
 
 Cgi::~Cgi() {
@@ -110,6 +109,31 @@ void Cgi::exec(const std::string& path, const std::string& body) {
     this->_body = body;
 
     WebServ::push_back(this);
+}
+
+void Cgi::checkRunningProcesses(int index) {
+    time_t current_time = time(NULL);
+
+    for (std::vector<cgiProcess>::iterator it = WebServ::cgiProcesses.begin(); it != WebServ::cgiProcesses.end();) {
+        time_t elapsed_time = current_time - it->start_time;
+
+        if (elapsed_time > 2) {
+            kill(it->pid, SIGKILL);
+            WebServ::erase(index);
+            it = WebServ::cgiProcesses.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+
+void Cgi::routine(int index) {
+    this->checkRunningProcesses(index);
+    if (WebServ::pollfds[index].revents & POLLIN)
+        this->handlePollin(index);
+    if (WebServ::pollfds[index].revents & POLLOUT)
+        this->handlePollout(index);
 }
 
 void Cgi::handlePollout(int index) {

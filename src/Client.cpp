@@ -31,6 +31,13 @@ Client::Client(Server& server) : _server(server) {
 Client::~Client() {
 }
 
+void Client::routine(int index) {
+    if (WebServ::pollfds[index].revents & POLLIN)
+        this->handlePollin(index);
+    if (WebServ::pollfds[index].revents & POLLOUT)
+        this->handlePollout(index);
+}
+
 void Client::handlePollin(int clientPos) {
     try {
         this->_request.readRequest(this->_fd);

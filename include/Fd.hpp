@@ -11,11 +11,10 @@ class Fd {
     virtual ~Fd();
 
     int getFd(void);
-    bool isCgi(void) const;
+    virtual void routine(int index) = 0;
     virtual void handlePollin(int index) = 0;
     virtual void handlePollout(int index) = 0;
 
    protected:
     int _fd;
-    bool _isCgi;
 };
