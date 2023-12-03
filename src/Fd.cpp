@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-Fd::Fd(void) : _fd(-1), _isCgi(false) {
+Fd::Fd(void) : _fd(-1) {
 }
 
 Fd::~Fd() {
@@ -16,8 +16,4 @@ Fd::~Fd() {
 
 int Fd::getFd(void) {
     return this->_fd;
-}
-
-bool Fd::isCgi(void) const {
-    return this->_isCgi;
 }
