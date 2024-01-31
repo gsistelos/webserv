@@ -16,6 +16,7 @@ class Server : public Fd {
     const ConfigBlock& getConfig(const std::string& serverName);
 
     void configToServerName(ConfigBlock& configBlock);
+    void routine(int index);
     void handlePollin(int index);
     void handlePollout(int index);
 

@@ -76,6 +76,14 @@ const ConfigBlock& Server::getConfig(const std::string& serverName) {
     return *this->_configDefault;
 }
 
+void Server::routine(int index) {
+    if (WebServ::pollfds[index].revents & POLLIN) {
+        this->handlePollin(index);
+    } else if (WebServ::pollfds[index].revents & POLLOUT) {
+        this->handlePollout(index);
+    }
+}
+
 void Server::handlePollin(int index) {
     (void)index;
 
