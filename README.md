@@ -1,13 +1,9 @@
-# Webserv:  42 School Project
-
-<p align="center">
-  <img width="100%" height="100%" src="https://i1.ae/img/webserv/Demo6.jpg">
-</p>
+# Webserv
 
 ## About
 
 The goal of the project is to build a C++98 compatible HTTP web server from scratch.
-The web server can handle HTTP GET, HEAD, POST, and DELETE Requests, and can serve static files from a specified root directory or dynamic content using CGI. It is also able to handle multiple client connections concurrently with the help of select().
+The web server can handle HTTP GET, POST, and DELETE Requests, and can serve static files from a specified root directory or dynamic content using CGI. It is also able to handle multiple client connections concurrently with the help of poll().
 <br>
 
 ---
@@ -125,7 +121,7 @@ A basic HTTP web server consists of several components that work together to rec
 ## Server Core
 The networking part of a web server that handles TCP connections and performs tasks such as listening for incoming requests and sending back responses. It is responsible for the low-level networking tasks of the web server, such as creating and managing sockets, handling input and output streams, and managing the flow of data between the server and clients.
 
-Before writing your webserver, I would recommend reading [this](https://medium.com/from-the-scratch/http-server-what-do-you-need-to-know-to-build-a-simple-http-server-from-scratch-d1ef8945e4fa) awesome guide on building simple TCP client/server in C as it will help you get a good understanding of how TCP works in C/C++. also you would need to understand I/O multiplixing, [this](https://www.youtube.com/watch?v=Y6pFtgRdUts&ab_channel=JacobSorber) video will help you grasp the main idea of select().
+Before writing your webserver, I would recommend reading [this](https://medium.com/from-the-scratch/http-server-what-do-you-need-to-know-to-build-a-simple-http-server-from-scratch-d1ef8945e4fa) awesome guide on building simple TCP client/server in C as it will help you get a good understanding of how TCP works in C/C++.
 
 The I/O Multiplexing process in our web server is summarized in the flowchart below. (CGI is not included in the flowchart but may be added in the future)
 <br>
@@ -134,7 +130,7 @@ The I/O Multiplexing process in our web server is summarized in the flowchart be
 <br>
 <br>
 
-Note: We have changed from the select() fd verification to poll() due to performance questions, so the flowchart can be a little different.
+Note: We've changed from the select() method to the poll() to get better performance, so the flowchart can be a little different.
 
 ## Request Parser
 
@@ -199,7 +195,6 @@ CGI programs are simply scripts that can be written in any programming language,
 __Networking__
 - [Create a simple HTTP server in c](https://medium.com/from-the-scratch/http-server-what-do-you-need-to-know-to-build-a-simple-http-server-from-scratch-d1ef8945e4fa)
 - [(Video) Create a simple web server in c](https://www.youtube.com/watch?v=esXw4bdaZkc&ab_channel=JacobSorber)
-- [IBM - Nonblocking I/O and select()](https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_72/rzab6/xnonblock.htm)
 - [All about sockets blocking](http://dwise1.net/pgm/sockets/blocking.html)
 - [TCP Socket Programming: HTTP](https://w3.cs.jmu.edu/kirkpams/OpenCSF/Books/csf/html/TCPSockets.html)
 - [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/)
