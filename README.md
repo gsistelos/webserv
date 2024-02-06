@@ -4,6 +4,7 @@
 
 - [@itsmevitinn](https://www.github.com/itsmevitinn)
 - [@gsistelos](https://www.github.com/gsistelos)
+- [@mreis-me](https://github.com/mreis-me)
 
 ## About
 
