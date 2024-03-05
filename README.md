@@ -237,7 +237,6 @@ __Tools__
 - [Postman](https://www.postman.com/downloads/) : Send custom requests to the server
 - [PuTTY](https://www.putty.org/) : Send raw data to the server (Windows Only)
     - [Video: How to use](https://www.youtube.com/watch?v=ptJYNY7UbQU&ab_channel=GeekThis)
-- [Wireshark]() : Capture request/response traffic
 - [Sige](https://www.linode.com/docs/guides/load-testing-with-siege/) : Load testing 
 
 __Other__
