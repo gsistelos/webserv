@@ -237,7 +237,7 @@ __Tools__
 - [Postman](https://www.postman.com/downloads/) : Send custom requests to the server
 - [PuTTY](https://www.putty.org/) : Send raw data to the server (Windows Only)
     - [Video: How to use](https://www.youtube.com/watch?v=ptJYNY7UbQU&ab_channel=GeekThis)
-- [Sige](https://www.linode.com/docs/guides/load-testing-with-siege/) : Load testing 
+- [Siege](https://www.linode.com/docs/guides/load-testing-with-siege/) : Load testing 
 
 __Other__
 - [URL Encoding](https://www.urlencoder.io/learn/#:~:text=A%20URL%20is%20composed%20from,%22%20%2C%20%22~%22%20)
